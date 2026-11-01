@@ -17,6 +17,8 @@ secrets/
 *.pgpass
 
 # Python
+.tools/
+.test-artifacts/
 __pycache__/
 *.py[cod]
 .venv/
@@ -53,6 +55,7 @@ cache/
 *.avi
 *.mov
 *.ts
+!frontend/**/*.ts
 *.iso
 *.flac
 *.mp3

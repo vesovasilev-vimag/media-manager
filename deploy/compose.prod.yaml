@@ -1,0 +1,123 @@
+name: vimag-media-manager
+services:
+  web:
+    image: ${WEB_IMAGE:?Set digest-pinned WEB_IMAGE from the release manifest}
+    networks: [vimag, backend]
+    depends_on: {api: {condition: service_healthy}}
+    read_only: true
+    user: "101:101"
+    tmpfs: [/tmp, /var/cache/nginx, /var/run]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    restart: unless-stopped
+    mem_limit: 128m
+    healthcheck:
+      test: [CMD, wget, --spider, -q, http://127.0.0.1:8080/]
+      interval: 20s
+      timeout: 5s
+      retries: 3
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: vimag_default
+      traefik.http.routers.vimag-manager.rule: Host(`${MANAGER_HOST:?Set verified private manager hostname}`)
+      traefik.http.routers.vimag-manager.entrypoints: websecure
+      traefik.http.routers.vimag-manager.tls: "true"
+      traefik.http.routers.vimag-manager.middlewares: ${TRAEFIK_ACCESS_MIDDLEWARE:?Set existing Tailscale/private access middleware}
+      traefik.http.services.vimag-manager.loadbalancer.server.port: "8080"
+    logging: &logging
+      driver: json-file
+      options: {max-size: 10m, max-file: "5"}
+  api:
+    image: ${BACKEND_IMAGE:?Set digest-pinned BACKEND_IMAGE from the release manifest}
+    command: [python, -m, app.api]
+    networks: [vimag, backend]
+    environment: &environment
+      VIMAG_ENVIRONMENT: production
+      VIMAG_ALLOWED_HOST: ${MANAGER_HOST:?}
+      VIMAG_ORIGIN: https://${MANAGER_HOST:?}
+      VIMAG_WRITE_ENABLED: "false"
+      VIMAG_AUTOMATIC_INTAKE: "false"
+      VIMAG_NAS_MOUNT_SOURCE: ${NAS_MOUNT_SOURCE:?Set exact verified CIFS source}
+    secrets: [db_password, setup_token]
+    depends_on: {db: {condition: service_healthy}}
+    user: "1000:1000"
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    restart: unless-stopped
+    mem_limit: 512m
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; r=urllib.request.Request('http://127.0.0.1:8000/api/v1/health/live',headers={'Host':__import__('os').environ['VIMAG_ALLOWED_HOST']}); urllib.request.urlopen(r,timeout=3)"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+    logging: *logging
+  worker:
+    image: ${BACKEND_IMAGE:?}
+    command: [python, -m, app.worker]
+    networks: [vimag, backend]
+    environment:
+      <<: *environment
+      VIMAG_QBT_URL: ${QBT_URL:?Set verified internal qBt endpoint}
+      VIMAG_JELLYFIN_URL: ${JELLYFIN_URL:?Set verified Jellyfin endpoint}
+      VIMAG_JELLYFIN_LIBRARY_ROOT: ${JELLYFIN_LIBRARY_ROOT:?Set verified Jellyfin-side library mount}
+    secrets: [db_password, qbt_api_key, qbt_username, qbt_password, jellyfin_api_key, tmdb_api_key, subtitle_api_key]
+    volumes:
+      - type: bind
+        source: /mnt/storage/qbt
+        target: /downloads
+        bind: {create_host_path: false}
+      - type: bind
+        source: /mnt/nas/Movies
+        target: /nas-movies
+        bind: {create_host_path: false}
+    depends_on: {db: {condition: service_healthy}}
+    user: "1000:1000"
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    restart: "no"
+    mem_limit: 1g
+    cpus: 2
+    healthcheck:
+      test: [CMD, python, -m, app.ops, health]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    logging: *logging
+  db:
+    image: ${POSTGRES_IMAGE:?Set approved pinned postgres image digest}
+    networks: [backend]
+    environment:
+      POSTGRES_USER: vimag
+      POSTGRES_DB: vimag
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_password
+    secrets: [db_password]
+    volumes:
+      - type: bind
+        source: ${PGDATA_HOST:?Set preflight-verified local ext4/XFS directory}
+        target: /var/lib/postgresql/data
+        bind: {create_host_path: false}
+    restart: unless-stopped
+    shm_size: 256m
+    mem_limit: 1g
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U vimag -d vimag"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    logging: *logging
+networks:
+  vimag: {external: true, name: vimag_default}
+  backend: {internal: true}
+secrets:
+  db_password: {file: ./secrets/db_password}
+  setup_token: {file: ./secrets/setup_token}
+  qbt_api_key: {file: ./secrets/qbt_api_key}
+  qbt_username: {file: ./secrets/qbt_username}
+  qbt_password: {file: ./secrets/qbt_password}
+  jellyfin_api_key: {file: ./secrets/jellyfin_api_key}
+  tmdb_api_key: {file: ./secrets/tmdb_api_key}
+  subtitle_api_key: {file: ./secrets/subtitle_api_key}

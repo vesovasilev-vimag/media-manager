@@ -1,136 +1,51 @@
 # ViMag Media Manager
 
-**Reliable post-download media organization for qBittorrent and Jellyfin.**
+Self-hosted media imports for qBittorrent and Jellyfin: Vue 3, FastAPI, a separate Python/ffprobe Worker and PostgreSQL. Four runtime containers and two custom images, with Bulgarian-first, edition-aware organization, guarded torrent moves, hardlinks, sidecars, subtitles and reversible quarantine.
 
-> **Project status:** Technical Scope v1.0 and Implementation Design v1.0 approved and published (2026-11-01). No production application, container image, or deployment exists yet. The interactive HTML wireframe is a simulation only.
+**RC1 implementation is on `codex/rc1`. See the [release report](docs/rc1-release-report.md) for actual publication, deployment and gate status. Local builds and synthetic tests are separate from production verification.**
 
-ViMag Media Manager is a planned self-hosted web application for safely importing completed qBittorrent downloads into a NAS-based Jellyfin media library. It will identify media, compare library versions, prioritize verified Bulgarian audio, apply consistent filenames and directory structures, find Bulgarian subtitles, publish to Jellyfin, and verify that torrents still seed correctly after relocation.
+The seven screens use persisted APIs: dashboard, job details, library, duplicate comparison, move queue, subtitles and settings. Imports succeed only after NAS integrity, qBt mapping/pieces/seeding capability, Jellyfin recognition and all critical children are verified.
 
-## Project principles
+## Development and automated validation
 
-- **qBittorrent category is the chosen top-level library destination.** Users select `movies`, `series`, `animations`, `documentaries`, or `concerts` while downloading. ViMag manages identification, naming and subdirectories *within* that category; it must not silently override it.
-- **Bulgarian-first with quality safeguards.** Preserve verified BG-audio editions. Materially better non-BG video may coexist as a separate version when justified.
-- **No unexpected data loss.** No permanent deletion of library versions in v1. Only verified, unnecessary temporary download/staging copies may be cleaned automatically after all dependency and integrity checks.
-- **Torrent-aware operations.** qBittorrent owns torrent file mappings and seeding. ViMag must not independently rename/move active torrent files in ways that break those mappings.
-- **Observable, resumable jobs.** Every operation is auditable, idempotent where possible, and recoverable after an interrupted NAS/API connection.
-- **Human review for ambiguity.** Uncertain matches, duplicate decisions, category mismatches, subtitle mismatches and potentially destructive actions require review.
+Development uses emulated providers, generated secret files and synthetic Docker volumes, with no production mounts or credentials.
 
-## Workflow
-
-```text
-qBittorrent: completed download
-      |
-      v
-01  Intake / torrent identification
-02  Identify and inspect (TMDb + ffprobe / MediaInfo)
-03  Compare with library (BG-first + quality + editions)
-04  Organize and enrich (safe NAS relocation + NFO/artwork)
-05  Find and validate Bulgarian subtitles
-06  Publish and verify in Jellyfin
-07  Verify final torrent location, integrity and seeding
-      |
-      v
-Completed only after required checks pass
+```sh
+sh deploy/scripts/init-dev.sh
+docker compose -f deploy/compose.dev.yaml build
+docker compose -f deploy/compose.dev.yaml up -d --wait db
+docker compose -f deploy/compose.dev.yaml run --rm api python -m alembic upgrade head
+docker compose -f deploy/compose.dev.yaml up -d --wait
 ```
 
-**Important:** Seeding recovery must happen as early as safely possible during step 04. Step 07 is the final confirmation, not the first attempt to resume seeding.
+Open `http://localhost:8088`. Enrollment uses the private generated `deploy/secrets/setup_token` and a new admin password. There is no default account. Windows also has a PowerShell initializer. Secret values stay outside Git and chat.
 
-## Storage and category routing
-
-| qBittorrent category | NAS library root |
-| --- | --- |
-| `movies` | `/mnt/nas/Movies/Library/Movies` |
-| `series` | `/mnt/nas/Movies/Library/Series` |
-| `animations` | `/mnt/nas/Movies/Library/Animations` |
-| `documentaries` | `/mnt/nas/Movies/Library/Documentaries` |
-| `concerts` | `/mnt/nas/Movies/Library/Concerts` |
-
-Download staging: `/mnt/storage/qbt`. The download disk and NAS are separate physical storage resources. Preserving qBittorrent seeding during and after relocation is the principal engineering risk.
-
-Approved illustrative movie naming convention:
-
-```text
-Movies/
-  The Matrix (1999) [tmdbid-603]/
-    The Matrix (1999) [tmdbid-603] - 2160p HDR.mkv
-    The Matrix (1999) [tmdbid-603] - 2160p HDR.bg.srt
-    movie.nfo
-    poster.jpg
-    backdrop.jpg
+```sh
+mkdir -p .test-artifacts
+docker build -f tests/Dockerfile -t vimag-tests .
+docker run --rm --network vimag-dev_default -v "$PWD/deploy/secrets:/workspace/deploy/secrets:ro" -v "$PWD/.test-artifacts:/results" vimag-tests
+cd frontend
+npm ci
+npm run lint
+npm run typecheck
+npm run test
+npm run build
+npx playwright install chromium
+npx playwright test
 ```
 
-The movie file prefix intentionally matches the folder name for Jellyfin multiple-version detection. TV episodes use a series/season/episode layout. Animations and Documentaries use `Movies/` and `Series/` subdirectories; concerts use `Artist - Event (Year)` when adequately identified.
+Linux tests exercise real PostgreSQL migrations, concurrency, backup/restore, generated ffprobe media, hardlinks, replay/failure injection, security and mocked external contracts. [Traceability](docs/rc1-traceability.md) records the 43 T and 17 IT scenarios. CI/security repeat the checks before release.
 
-## Approved safety and automation policies
+## Safety and delivery
 
-- **Local administrator:** one authenticated admin account with server-side authorization; Tailscale/VPN is an additional security boundary.
-- **Torrent-safe relocation:** qBittorrent-managed moves for compatible torrents; NAS torrent tree and hardlinks for compatible multi-file packages; manual review for unsafe fallbacks.
-- **Bulgarian-first:** verified BG audio takes priority; materially better non-BG editions may coexist; multi-factor comparison never auto-deletes old library media.
-- **Safe metadata ownership:** updates are automatic only for unchanged ViMag-owned NFO/artwork; external edits require review.
-- **Quarantine and restore:** approved and dependency-safe; permanent deletion of library files is out of scope for v1.
-- **Seeding and publish verification:** no successful completion without valid torrent mapping and Jellyfin verification; missing noncritical subtitles can yield `CompletedWithWarnings`.
-- **Technical prerequisites:** G-01 authenticated read-only API discovery PASS; G-02 host/Docker scratch hardlinks PASS; remaining G-01 write, G-02 production worker, G-03..G-06 and G-DB-01 gates require validation before controlled live writes.
+First deployment is `WRITE_ENABLED=false`, automatic intake disabled. Snapshot the actual existing torrent set as legacy read-only; 92 is the historical observation, not a fixed count. No automatic adoption after remove/re-add. Only eligible new owned torrents use Manual TMM and `/downloads/complete`. Preserve the five categories and existing mounts; file presence is not download completion.
 
-## Planned capabilities
+qBt owns active payload moves/renames. An accepted request is not verification. Preserve paused/queued/ratio policy; zero upload is not failure. Worker alone receives the single NAS bind. No transcoding/remux or media-byte editing. BG naming requires stream-bound evidence.
 
-| Area | Scope |
-| --- | --- |
-| Automatic Intake | Completion hook plus reconciliation for missed events; one parent job per torrent; support multi-item/season packs |
-| Job Dashboard | Status, step progress, detailed audit trail, pause/resume/retry/review |
-| Identification | Movie/show detection, provider match, media streams, language confidence, integrity |
-| Quality & Duplicates | Version comparison, edition-aware decisions, BG-first policy, seeding dependency checks |
-| Safe Move Queue | Physical transfer progress, copy/integrity verification, qBittorrent mapping and recovery |
-| Library Maintenance | Non-destructive scan, detect/organize pre-existing media, explicit cleanup approvals |
-| Subtitles | Existing/embedded/external BG tracks, release matching, timing/sync and manual review |
-| Jellyfin | Refresh request, wait for recognition, validate title, category, versions and track availability |
-| Settings | Connections, storage, naming, quality, automation, service health and logs |
+There is no permanent library/quarantine delete. Quarantine requires exact approval and fresh dependency proof. Unknown sidecars cannot auto-overwrite. Cleanup is limited to proven disposable staging files.
 
-## Deployment context (planned, not implemented)
+GitHub Actions publishes `vesovasilev/media-manager-web:1.0.0-rc.1` and `vesovasilev/media-manager-backend:1.0.0-rc.1` only after CI/security pass, recording actual digests, SBOM and provenance. ViMag pulls immutable artifacts, with no source build, unattended update or new public DB/API/qBt ports. Deployment and exactly one new harmless torrent test require actual access, private secrets, backups and a rotated Jellyfin token. General activation is a separate gated cutover.
 
-- Host: ViMag (Linux / Docker Compose), reverse proxy Traefik v3.6, private access via Tailscale/internal DNS.
-- Proposed internal URL: `https://manager.vimag.app`.
-- Existing Docker network: `vimag_default`.
-- Approved stack: Vue 3 frontend; FastAPI backend; separate persistent background worker; **PostgreSQL** with durable queue/leases; ffprobe / MediaInfo; qBittorrent Web API; Jellyfin REST API; TMDb and configurable subtitle providers. Four runtime containers, two custom images.
-- Target Docker Hub account for **future** images: `vesovasilev` (publication/CI/CD not configured).
-- No extra message broker or database infrastructure until measurements justify it.
+Read [deployment/backup](docs/deployment-and-backup.md), [recovery](docs/operations-and-recovery.md), [qBt integration](docs/qbt-integration-runbook.md), [mounts](docs/storage-mount-matrix.md), [OpenAPI](docs/api-contract-v1.yaml) and [security review](docs/security-review.md).
 
-RC1 development preparation is published in GitHub; runtime application, CI workflows, Docker images and production Compose are **not yet implemented**. Codex must build and validate them before RC1.
-
-## Documentation and approved UX reference
-
-- [Approved Technical Scope v1.0](docs/technical-scope-v1.0.md): boundaries, design decisions, workflows, data model, safety rules, acceptance tests and open questions.
-- [Approved Implementation Design v1.0](docs/implementation-design-v1.0.md): Docker architecture, PostgreSQL job queue, qBittorrent/Jellyfin contracts, operation journal, safety gates and rollout plan.
-- [Codex RC1 kickoff](docs/rc1-kickoff.md): single uninterrupted full-scope implementation, autonomous CI checks, image publication, then authorized postdeploy integration with one torrent.
-- [Development workstation setup](docs/dev-environment.md), [Codex agent rules](AGENTS.md), [RC1 acceptance/evidence ledger](docs/rc1-traceability.md) and [release report](docs/rc1-release-report.md).
-- [Approved interactive HTML wireframe v1.0](wireframes/vimag-media-manager-v1.0.html): local, browser-run demo with simulated jobs; **not** a running application.
-
-## Project phases
-
-| Phase | Status | Gate |
-| --- | --- | --- |
-| A. UX wireframe | **Approved** | Interactive scenarios reviewed |
-| B. Technical scope and architecture | **Approved — v1.0** | All 22 product decisions confirmed; six technical safety gates remain before real file operations |
-| C. Implementation | **Codex kickoff prepared** | Autonomous implementation of entire approved scope through RC1; no owner-facing milestones |
-| D. Test in isolated media fixtures | **Not started** | Tests demonstrate torrent integrity and recoverability |
-| E. NAS/qBittorrent pilot | **Not started** | Backup, rollback and read-only baseline verified |
-| F. Docker Hub image publication | **Not started** | All automated RC checks green and registry credentials available |
-| G. Controlled deployment + one functional test torrent | **Not started** | Images published; backups, host access, safety gates and approved isolated test |
-
-## Safety and security notes
-
-- This repository is planned to be public. Never commit qBittorrent credentials, Docker Hub tokens, TMDb keys, NAS secrets, torrent identifiers from private trackers, or real library paths that reveal confidential data beyond the documented generic mounts.
-- No video/audio content is stored in this source repository.
-- The wireframe performs **no** filesystem, torrent or Docker operations.
-- No automatic transcoding, remux, track deletion, or media-file mutation is planned for the first release.
-- Service accounts and NAS permissions must be least-privilege; remote access stays within the existing trusted network.
-
-## References
-
-- [qBittorrent WebUI API](https://github.com/qbittorrent/qBittorrent/wiki/WebUI-API-%28qBittorrent-4.1%29)
-- [Jellyfin movie organization and multiple versions](https://jellyfin.org/docs/general/server/media/movies/)
-- [Jellyfin TV show organization](https://jellyfin.org/docs/general/server/media/shows/)
-- [Docker Build in GitHub Actions](https://docs.docker.com/build/ci/github-actions/)
-
----
-
-**Project rule:** Codex implements the full approved scope without intermediate owner questions, demos or manual tests. Autonomous CI checks are mandatory; Docker Hub publication precedes deployment; only an isolated new test torrent may be used for postdeploy functional validation. Legacy torrents remain protected.
+Approved sources: [scope](docs/technical-scope-v1.0.md), [design](docs/implementation-design-v1.0.md), [wireframe](wireframes/vimag-media-manager-v1.0.html) and [kickoff](docs/rc1-kickoff.md). The wireframe is a design reference, not the running application.

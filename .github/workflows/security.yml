@@ -1,0 +1,51 @@
+name: RC1 Security
+on:
+  push:
+    branches: [main, codex/rc1]
+  pull_request:
+  workflow_call:
+permissions: {contents: read}
+jobs:
+  source-security:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with: {node-version: '24.20.0'}
+      - uses: astral-sh/setup-uv@d0d8abe699bfb85fec6de9f7adb5ae17292296ff
+        with: {version: '0.9.8', python-version: '3.13.9'}
+      - name: Locked dependency audits and SAST
+        run: |
+          mkdir -p .test-artifacts
+          uv sync --project backend --frozen
+          uv run --project backend pip-audit --require-hashes -r backend/requirements.lock -f json -o .test-artifacts/pip-audit.json
+          uv run --project backend bandit -r backend/app -ll -f json -o .test-artifacts/bandit.json
+          cd frontend
+          npm ci
+          npm audit --audit-level=moderate
+      - name: Secret scan of checkout
+        run: docker run --rm -v "$PWD:/repo:ro" zricethezav/gitleaks:v8.30.0@sha256:691af3c7c5a48b16f187ce3446d5f194838f91238f27270ed36eef6359a574d9 git /repo --config /repo/.gitleaks.toml --redact --exit-code 1
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with: {name: security-evidence, path: .test-artifacts, include-hidden-files: true}
+  image-security:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      matrix:
+        include:
+          - {image: backend, context: backend}
+          - {image: web, context: frontend}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - run: |
+          mkdir -p .test-artifacts
+          docker build -q -t vimag-${{ matrix.image }}-scan ${{ matrix.context }}
+          docker save -o .test-artifacts/image.tar vimag-${{ matrix.image }}-scan
+      - name: Full container vulnerability report and fail on high/critical
+        run: |
+          docker run --rm -v "$PWD/.test-artifacts:/scan" aquasec/trivy:0.76.1@sha256:790fd66d1697395d8693d1acaa1ea702406a20f109b6fc7bac8db623eca6c06c image --input /scan/image.tar --scanners vuln --severity HIGH,CRITICAL --format json --output /scan/trivy-${{ matrix.image }}.json --exit-code 1
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with: {name: 'container-security-${{ matrix.image }}', path: '.test-artifacts/trivy-*.json', include-hidden-files: true}

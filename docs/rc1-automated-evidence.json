@@ -1,0 +1,432 @@
+{
+  "generated_at": "2026-11-01T15:14:42.864423+00:00",
+  "environment": "Disposable Linux, synthetic media and emulated external services; not live ViMag",
+  "junit_sha256": "a4082879b746114d926c50aa5c29cb46ba1324618109869389521447fce57ecc",
+  "tests": [
+    {
+      "test": "test_T26_T27_library_bg_evidence_preserves_bytes",
+      "source": "tests/acceptance/test_enrichment.py:11",
+      "status": "PASS"
+    },
+    {
+      "test": "test_T06_T33_provider_candidate_download_is_review_only",
+      "source": "tests/acceptance/test_enrichment.py:42",
+      "status": "PASS"
+    },
+    {
+      "test": "test_T01_verified_subtitle_attaches_then_republishes_complete",
+      "source": "tests/acceptance/test_enrichment.py:82",
+      "status": "PASS"
+    },
+    {
+      "test": "test_T26_T27_bg_verify_revoke_from_authenticated_api",
+      "source": "tests/acceptance/test_enrichment.py:112",
+      "status": "PASS"
+    },
+    {
+      "test": "test_T32_sidecar_external_edit_requires_exact_explicit_revision",
+      "source": "tests/acceptance/test_enrichment.py:146",
+      "status": "PASS"
+    },
+    {
+      "test": "test_T02_T28_keep_bg_and_materially_better_english",
+      "source": "tests/acceptance/test_policies.py:44",
+      "status": "PASS"
+    },
+    {
+      "test": "test_resolution_alone_never_proves_quality",
+      "source": "tests/acceptance/test_policies.py:54",
+      "status": "PASS"
+    },
+    {
+      "test": "test_T03_better_bg_recommendation_preserves_existing",
+      "source": "tests/acceptance/test_policies.py:61",
+      "status": "PASS"
+    },
+    {
+      "test": "test_T21_distinct_editions",
+      "source": "tests/acceptance/test_policies.py:68",
+      "status": "PASS"
+    },
+    {
+      "test": "test_T07_T29_competing_provider_ids_require_review",
+      "source": "tests/acceptance/test_policies.py:74",
+      "status": "PASS"
+    },
+    {
+      "test": "test_T25_tag_is_not_verified",
+      "source": "tests/acceptance/test_policies.py:84",
+      "status": "PASS"
+    },
+    {
+      "test": "test_T26_stream_bound_evidence_survives_byte_identical_copy",
+      "source": "tests/acceptance/test_policies.py:101",
+      "status": "PASS"
+    },
+    {
+      "test": "test_T27_wrong_stream_or_file_rejected",
+      "source": "tests/acceptance/test_policies.py:130",
+      "status": "PASS"
+    },
+    {
+      "test": "test_T24_special_multi_episode_naming",
+      "source": "tests/acceptance/test_policies.py:149",
+      "status": "PASS"
+    },
+    {
+      "test": "test_T15_traversal_and_symlink",
+      "source": "tests/acceptance/test_policies.py:171",
+      "status": "PASS"
+    },
+    {
+      "test": "test_T16_T17_zero_upload_and_intentional_pause",
+      "source": "tests/acceptance/test_policies.py:197",
+      "status": "PASS"
+    },
+    {
+      "test": "test_T18_IT03_IT04_manual_tmm_completion",
+      "source": "tests/acceptance/test_policies.py:207",
+      "status": "PASS"
+    },
+    {
+      "test": "test_T19_no_hardlink_fallback",
+      "source": "tests/acceptance/test_policies.py:218",
+      "status": "PASS"
+    },
+    {
+      "test": "test_T20_T32_T41_IT16_unknown_or_edited_sidecars",
+      "source": "tests/acceptance/test_policies.py:237",
+      "status": "PASS"
+    },
+    {
+      "test": "test_T20_T32_T41_IT16_unknown_or_edited_sidecars",
+      "source": "tests/acceptance/test_policies.py:237",
+      "status": "PASS"
+    },
+    {
+      "test": "test_T40_owned_sidecar_atomic_update_failure_preserves_old",
+      "source": "tests/acceptance/test_policies.py:252",
+      "status": "PASS"
+    },
+    {
+      "test": "test_T31_quarantine_and_restore_preserve_bytes",
+      "source": "tests/acceptance/test_policies.py:279",
+      "status": "PASS"
+    },
+    {
+      "test": "test_T43_IT09_cleanup_only_orphan_staging",
+      "source": "tests/acceptance/test_policies.py:304",
+      "status": "PASS"
+    },
+    {
+      "test": "test_T06_T33_subtitle_mismatch_preserves_original",
+      "source": "tests/acceptance/test_policies.py:350",
+      "status": "PASS"
+    },
+    {
+      "test": "test_T34_T35_T36_terminal_gate",
+      "source": "tests/acceptance/test_policies.py:365",
+      "status": "PASS"
+    },
+    {
+      "test": "test_T37_auth_expired_session_all_admin_routes",
+      "source": "tests/acceptance/test_security.py:12",
+      "status": "PASS"
+    },
+    {
+      "test": "test_T38_missing_csrf_no_side_effect_security_audit",
+      "source": "tests/acceptance/test_security.py:34",
+      "status": "PASS"
+    },
+    {
+      "test": "test_T39_machine_hook_has_no_admin_privileges",
+      "source": "tests/acceptance/test_security.py:54",
+      "status": "PASS"
+    },
+    {
+      "test": "test_T42_no_permanent_delete_endpoint",
+      "source": "tests/acceptance/test_security.py:64",
+      "status": "PASS"
+    },
+    {
+      "test": "test_T08_T23_T30_dependency_cannot_be_overridden",
+      "source": "tests/acceptance/test_security.py:78",
+      "status": "PASS"
+    },
+    {
+      "test": "test_T31_approved_quarantine_restore_journal",
+      "source": "tests/acceptance/test_security.py:99",
+      "status": "PASS"
+    },
+    {
+      "test": "test_idempotency_and_stale_revision",
+      "source": "tests/acceptance/test_security.py:150",
+      "status": "PASS"
+    },
+    {
+      "test": "test_login_rate_limit_cookie_logout_rotation",
+      "source": "tests/acceptance/test_security.py:176",
+      "status": "PASS"
+    },
+    {
+      "test": "test_secret_validation_never_echoes_input",
+      "source": "tests/acceptance/test_security.py:199",
+      "status": "PASS"
+    },
+    {
+      "test": "test_T01_new_movie_full_workflow",
+      "source": "tests/acceptance/test_workflow.py:18",
+      "status": "PASS"
+    },
+    {
+      "test": "test_T04_season_pack_one_move_multiple_children",
+      "source": "tests/acceptance/test_workflow.py:42",
+      "status": "PASS"
+    },
+    {
+      "test": "test_T05_nas_outage_retains_source_and_intent",
+      "source": "tests/acceptance/test_workflow.py:68",
+      "status": "PASS"
+    },
+    {
+      "test": "test_T09_IT05_parallel_duplicate_discovery",
+      "source": "tests/acceptance/test_workflow.py:85",
+      "status": "PASS"
+    },
+    {
+      "test": "test_T10_IT06_crash_after_dispatch_reconciles_no_second_move",
+      "source": "tests/acceptance/test_workflow.py:101",
+      "status": "PASS"
+    },
+    {
+      "test": "test_T11_http_accepted_is_not_completed",
+      "source": "tests/acceptance/test_workflow.py:115",
+      "status": "PASS"
+    },
+    {
+      "test": "test_T12_failed_pieces_blocks_terminal_and_cleanup",
+      "source": "tests/acceptance/test_workflow.py:131",
+      "status": "PASS"
+    },
+    {
+      "test": "test_T13_destination_collision_never_overwritten",
+      "source": "tests/acceptance/test_workflow.py:142",
+      "status": "PASS"
+    },
+    {
+      "test": "test_T14_category_drift_invalidates_plan",
+      "source": "tests/acceptance/test_workflow.py:169",
+      "status": "PASS"
+    },
+    {
+      "test": "test_T22_T35_IT11_jellyfin_pending_never_repeats_move",
+      "source": "tests/acceptance/test_workflow.py:180",
+      "status": "PASS"
+    },
+    {
+      "test": "test_T36_mixed_child_publish_failure_blocks_parent",
+      "source": "tests/acceptance/test_workflow.py:194",
+      "status": "PASS"
+    },
+    {
+      "test": "test_IT01_first_snapshot_any_count_legacy_zero_commands",
+      "source": "tests/acceptance/test_workflow.py:207",
+      "status": "PASS"
+    },
+    {
+      "test": "test_IT12_remove_readd_legacy_hash_never_inherits_management",
+      "source": "tests/acceptance/test_workflow.py:218",
+      "status": "PASS"
+    },
+    {
+      "test": "test_IT07_expired_fence_denies_old_worker",
+      "source": "tests/acceptance/test_workflow.py:236",
+      "status": "PASS"
+    },
+    {
+      "test": "test_IT17_new_manual_post_cutover_automatic_eligibility",
+      "source": "tests/acceptance/test_workflow.py:255",
+      "status": "PASS"
+    },
+    {
+      "test": "test_IT14_revoked_jellyfin_does_not_disturb_seeding",
+      "source": "tests/acceptance/test_workflow.py:271",
+      "status": "PASS"
+    },
+    {
+      "test": "test_IT02_fixture_add_exact_manual_local_category",
+      "source": "tests/contracts/test_adapters.py:12",
+      "status": "PASS"
+    },
+    {
+      "test": "test_qbt_204_session_cookie_verified_without_name_assumption",
+      "source": "tests/contracts/test_adapters.py:35",
+      "status": "PASS"
+    },
+    {
+      "test": "test_IT08_api_key_401_no_bruteforce",
+      "source": "tests/contracts/test_adapters.py:66",
+      "status": "PASS"
+    },
+    {
+      "test": "test_forbidden_qbt_bulk_global_delete_commands",
+      "source": "tests/contracts/test_adapters.py:83",
+      "status": "PASS"
+    },
+    {
+      "test": "test_IT11_Jellyfin_refresh_not_recognition",
+      "source": "tests/contracts/test_adapters.py:101",
+      "status": "PASS"
+    },
+    {
+      "test": "test_jellyfin_wrong_path_year_or_streams_never_verified",
+      "source": "tests/contracts/test_adapters.py:127",
+      "status": "PASS"
+    },
+    {
+      "test": "test_IT10_hardlink_shared_writes_without_inode_reliance",
+      "source": "tests/integration/test_operations.py:17",
+      "status": "PASS"
+    },
+    {
+      "test": "test_IT13_postgres_backup_restore_jobs_journal_audit",
+      "source": "tests/integration/test_operations.py:22",
+      "status": "PASS"
+    },
+    {
+      "test": "test_IT15_incompatible_schema_rollback_blocked",
+      "source": "tests/integration/test_operations.py:76",
+      "status": "PASS"
+    },
+    {
+      "test": "test_migration_downgrade_upgrade_disposable_only",
+      "source": "tests/integration/test_operations.py:81",
+      "status": "PASS"
+    },
+    {
+      "test": "test_real_ffprobe_synthetic_media_not_header_integrity_claim",
+      "source": "tests/integration/test_operations.py:97",
+      "status": "PASS"
+    },
+    {
+      "test": "test_production_four_containers_worker_only_single_nas_bind",
+      "source": "tests/integration/test_release_contracts.py:17",
+      "status": "PASS"
+    },
+    {
+      "test": "test_pending_manifest_cannot_be_deployed",
+      "source": "tests/integration/test_release_contracts.py:31",
+      "status": "PASS"
+    },
+    {
+      "test": "test_queue_claim_unique_and_resource_epochs_monotonic",
+      "source": "tests/integration/test_release_contracts.py:43",
+      "status": "PASS"
+    },
+    {
+      "test": "test_approved_normalization_reversible_journal_no_unknown_sidecar_write",
+      "source": "tests/integration/test_release_contracts.py:61",
+      "status": "PASS"
+    },
+    {
+      "test": "test_T23_shared_content_dependencies_ignore_inode_counts",
+      "source": "tests/integration/test_release_contracts.py:108",
+      "status": "PASS"
+    },
+    {
+      "test": "test_T17_worker_preserves_intentional_pause_without_start",
+      "source": "tests/integration/test_release_contracts.py:129",
+      "status": "PASS"
+    }
+  ],
+  "requirements": {
+    "T-01": "PASS",
+    "T-02": "PASS",
+    "T-03": "PASS",
+    "T-04": "PASS",
+    "T-05": "PASS",
+    "T-06": "PASS",
+    "T-07": "PASS",
+    "T-08": "PASS",
+    "T-09": "PASS",
+    "T-10": "PASS",
+    "T-11": "PASS",
+    "T-12": "PASS",
+    "T-13": "PASS",
+    "T-14": "PASS",
+    "T-15": "PASS",
+    "T-16": "PASS",
+    "T-17": "PASS",
+    "T-18": "PASS",
+    "T-19": "PASS",
+    "T-20": "PASS",
+    "T-21": "PASS",
+    "T-22": "PASS",
+    "T-23": "PASS",
+    "T-24": "PASS",
+    "T-25": "PASS",
+    "T-26": "PASS",
+    "T-27": "PASS",
+    "T-28": "PASS",
+    "T-29": "PASS",
+    "T-30": "PASS",
+    "T-31": "PASS",
+    "T-32": "PASS",
+    "T-33": "PASS",
+    "T-34": "PASS",
+    "T-35": "PASS",
+    "T-36": "PASS",
+    "T-37": "PASS",
+    "T-38": "PASS",
+    "T-39": "PASS",
+    "T-40": "PASS",
+    "T-41": "PASS",
+    "T-42": "PASS",
+    "T-43": "PASS",
+    "IT-01": "PASS",
+    "IT-02": "PASS",
+    "IT-03": "PASS",
+    "IT-04": "PASS",
+    "IT-05": "PASS",
+    "IT-06": "PASS",
+    "IT-07": "PASS",
+    "IT-08": "PASS",
+    "IT-09": "PASS",
+    "IT-10": "PASS",
+    "IT-11": "PASS",
+    "IT-12": "PASS",
+    "IT-13": "PASS",
+    "IT-14": "PASS",
+    "IT-15": "PASS",
+    "IT-16": "PASS",
+    "IT-17": "PASS"
+  },
+  "source_sha256": {
+    "backend/app/__init__.py": "3df9329cf31cf999c8aa8f2bed9952c82d437e400c86f0bed05812dce1b64546",
+    "backend/app/adapters.py": "8139a3cca929979a7dc7911eccbc160af4c3e95aca479d1ce1ded99c7b0d3353",
+    "backend/app/api.py": "54af06150c85e8bd13872d87a61e567bd6670d6dd4c0c4259342969fcb535145",
+    "backend/app/domain.py": "1953076ef530b6fade3279f3723305ba626ebbf8a3c7e1da0e4f53a6196829da",
+    "backend/app/emulated.py": "fd83d3814787ace0f8f353248d756f8ad638015ab6bd33d17b46aab0c5f5cc8e",
+    "backend/app/maintenance.py": "a32f42123cde8420b509949a72155a5984542376d2555ba2a6e2c63fb4f256d7",
+    "backend/app/ops.py": "1ff4bb8b8fbea443b86d6c7734af2fc69fc986db81ea37d92c17fad7461eb726",
+    "backend/app/persistence.py": "246ea65aa43730d6e3630a4bbec04520b29bc1a2af2a4238a67628824d8256ab",
+    "backend/app/settings.py": "253fe75290a111937c1ef987d2a610a2173de15b8cb17562364a344742fafbb0",
+    "backend/app/storage.py": "eb681942536bb8b8b474d27c93f265e4d4eced70726127edc436da2923c6caff",
+    "backend/app/subtitles.py": "c014444f62aae90c3de7ea872a1ee5963250c363b5bbde9db18567e27c4c0e85",
+    "backend/app/worker.py": "5f42fc74f64658a24d1f14e1c4656d5110e98e68a1ba52af1f8af09453c0696d",
+    "tests/acceptance/test_enrichment.py": "fa7681aa9915a77bc0371a46493b0fca571a70339e2de69c4e5f0d99dc537597",
+    "tests/acceptance/test_policies.py": "8f8eeb6d7c02a51a918d1c914d9e3d9b61e62083c347080e9cd57da7cbd1dc5e",
+    "tests/acceptance/test_security.py": "5f89fa8df45ae8725f55e79a569b406e55645d5bfe1b119ff198654082c220d9",
+    "tests/acceptance/test_workflow.py": "04f0de20cdc864c379a36a078ed24c904423e00c1c27ed500c43120d8600d962",
+    "tests/conftest.py": "2f0b908e117be5be210aa9a9cd770ecf75b31c9a15cdeb148920c0b0017b94c1",
+    "tests/contracts/test_adapters.py": "f8d08f405705b2f95e3bebb23d80d504edda876785aa2679d661cf73a9353924",
+    "tests/fixtures/generate_fixture.py": "961d06a141e63daa4fcad0ac95a05474440d7921f428b2dcd0357fb847451d3f",
+    "tests/integration/test_operations.py": "4ae59957767f23100fed1074cbaa18096893640d9f314002d1573261485048d7",
+    "tests/integration/test_release_contracts.py": "60617ecf074228ab8b7254fc3f2d28309d7ffcdde9e5ccf7e66d268d1d364405",
+    "frontend/src/api.ts": "d1fee58e2a9e53ea2c3498c2177a87856960d42c622a2c4a19b4b270ecf0661f",
+    "frontend/src/App.vue": "009bc29e7d3dd1ba82fb688914f968d562668805da519488ddc78257148aaa74",
+    "frontend/src/main.ts": "a9a77d229d3df173585188d0cfcdeb479cf61b5a0028b67353b4f5998c9e3ad9",
+    "frontend/src/style.css": "c8bda9ab9b7de83ae821cc525dfe502710a2718375d732c5b8d3cf998fc0162d",
+    "frontend/src/types.ts": "23b639284cd5381483694b5052a03068ae47393450fda41e2f1290a2ff2cb02a"
+  }
+}

@@ -1,0 +1,82 @@
+name: RC1 CI
+on:
+  push:
+    branches: [main, codex/rc1]
+  pull_request:
+  workflow_call:
+permissions: {contents: read}
+concurrency:
+  group: ci-${{ github.ref }}-${{ github.workflow }}
+  cancel-in-progress: false
+jobs:
+  backend:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Synthetic database and Linux test image
+        run: |
+          sh deploy/scripts/init-dev.sh
+          mkdir -p .test-artifacts
+          docker compose -f deploy/compose.dev.yaml up -d --wait db
+          docker build -q -f tests/Dockerfile -t vimag-tests .
+      - name: Formatting, lint and types
+        run: |
+          docker run --rm vimag-tests ruff format --check backend/app tests
+          docker run --rm vimag-tests ruff check backend/app tests
+          docker run --rm -w /workspace/backend vimag-tests mypy --config-file pyproject.toml app
+      - name: PostgreSQL, media, safety and acceptance tests
+        run: |
+          docker run --rm --network vimag-dev_default -v "$PWD/deploy/secrets:/workspace/deploy/secrets:ro" -v "$PWD/.test-artifacts:/results" vimag-tests
+          python3 deploy/scripts/record-evidence.py
+          cp docs/rc1-automated-evidence.json .test-artifacts/
+      - name: Backend production image
+        run: docker build -q -t vimag-backend-ci backend
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with: {name: backend-evidence, path: .test-artifacts, include-hidden-files: true}
+      - if: always()
+        run: docker compose -f deploy/compose.dev.yaml down -v
+  frontend:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults: {run: {working-directory: frontend}}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with: {node-version: '24.20.0', cache: npm, cache-dependency-path: frontend/package-lock.json}
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run test -- --reporter=default --reporter=junit --outputFile=../.test-artifacts/frontend.xml
+      - run: npm run build
+      - run: docker build -q -t vimag-web-ci .
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with: {name: frontend-evidence, path: .test-artifacts, include-hidden-files: true}
+  browser:
+    needs: [backend, frontend]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with: {node-version: '24.20.0'}
+      - name: Four-container synthetic stack
+        run: |
+          sh deploy/scripts/init-dev.sh
+          docker compose -f deploy/compose.dev.yaml build --quiet
+          docker compose -f deploy/compose.dev.yaml up -d --wait db
+          docker compose -f deploy/compose.dev.yaml run --rm api python -m alembic upgrade head
+          docker compose -f deploy/compose.dev.yaml up -d --wait
+      - name: Browser acceptance at desktop and mobile
+        working-directory: frontend
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+          npx playwright test
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with: {name: browser-evidence, path: .test-artifacts, include-hidden-files: true}
+      - if: always()
+        run: docker compose -f deploy/compose.dev.yaml down -v

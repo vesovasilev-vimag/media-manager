@@ -1,0 +1,38 @@
+[project]
+name = "vimag-media-manager"
+version = "1.0.0rc1"
+requires-python = ">=3.13,<3.14"
+dependencies = [
+  "fastapi==0.162.0", "starlette==1.10.0", "uvicorn==0.38.0", "sqlalchemy==2.0.44",
+  "psycopg[binary]==3.2.12", "alembic==1.17.1", "httpx==0.28.1",
+  "argon2-cffi==25.1.0", "pydantic-settings==2.11.0", "pyyaml==6.0.3", "defusedxml==0.7.1",
+]
+[dependency-groups]
+dev = [
+    "pytest==8.4.2",
+    "pytest-cov==7.0.0",
+    "ruff==0.14.3",
+    "mypy==1.18.2",
+    "types-PyYAML==6.0.12.20250915",
+    "pip-audit==2.9.0",
+    "bandit==1.8.6",
+    "types-defusedxml==0.7.0.20260504",
+]
+[tool.pytest.ini_options]
+testpaths = ["tests", "../tests"]
+pythonpath = ["."]
+addopts = "-ra --strict-markers"
+[tool.ruff]
+target-version = "py313"
+line-length = 100
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "S"]
+ignore = ["E501", "B008"]
+[tool.ruff.lint.per-file-ignores]
+"**/tests/**" = ["S101", "S106"]
+"../tests/**" = ["S101", "S106"]
+[tool.mypy]
+python_version = "3.13"
+check_untyped_defs = true
+disallow_untyped_defs = true
+plugins = ["pydantic.mypy"]
