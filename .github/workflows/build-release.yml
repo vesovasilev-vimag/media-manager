@@ -4,6 +4,7 @@ on:
     branches: [codex/rc1]
     # The release tag is created by this workflow after CI and security gates.
     # Do not start a second publication run from the tag itself.
+    # RC1 credential-correction resume: force a fresh queued run to load repository secrets.
     paths-ignore: ['docs/**', 'README.md']
   workflow_dispatch:
 permissions: {contents: read}
