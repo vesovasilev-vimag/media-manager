@@ -32,11 +32,19 @@ jobs:
           cp docs/rc1-automated-evidence.json .test-artifacts/
       - name: Backend production image
         run: docker build -q -t vimag-backend-ci backend
+      - name: Production database least privilege bootstrap
+        run: |
+          docker compose -f tests/compose.roles.yaml up -d --wait
+          roles=$(docker compose -f tests/compose.roles.yaml exec -T db psql -U vimag_cluster_admin -d vimag -tAc "SELECT rolsuper,rolcreatedb,rolcreaterole,rolreplication,rolbypassrls FROM pg_roles WHERE rolname='vimag'")
+          test "$roles" = 'f|f|f|f|f'
+          docker compose -f tests/compose.roles.yaml exec -T db psql -U vimag -d vimag -v ON_ERROR_STOP=1 -c 'CREATE TABLE public.permission_probe(id integer); INSERT INTO public.permission_probe VALUES(1); SELECT * FROM public.permission_probe;'
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with: {name: backend-evidence, path: .test-artifacts, include-hidden-files: true}
       - if: always()
         run: docker compose -f deploy/compose.dev.yaml down -v
+      - if: always()
+        run: docker compose -f tests/compose.roles.yaml down -v
   frontend:
     runs-on: ubuntu-24.04
     timeout-minutes: 15

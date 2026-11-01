@@ -1,7 +1,7 @@
 {
-  "generated_at": "2026-11-01T15:50:12.447584+00:00",
+  "generated_at": "2026-11-01T16:07:26.480366+00:00",
   "environment": "Disposable Linux, synthetic media and emulated external services; not live ViMag",
-  "junit_sha256": "fb1ef4f80fc006cbc9985910013686ff59d8ac4410d7947cae5130bee534b03f",
+  "junit_sha256": "c8704533f3f75c959648e83f33a769d8a29b753c855b9650b4afff911ba513b3",
   "tests": [
     {
       "test": "test_health_reports_jellyfin_outage_and_stale_worker",
@@ -330,27 +330,27 @@
     },
     {
       "test": "test_pending_manifest_cannot_be_deployed",
-      "source": "tests/integration/test_release_contracts.py:31",
+      "source": "tests/integration/test_release_contracts.py:41",
       "status": "PASS"
     },
     {
       "test": "test_queue_claim_unique_and_resource_epochs_monotonic",
-      "source": "tests/integration/test_release_contracts.py:43",
+      "source": "tests/integration/test_release_contracts.py:53",
       "status": "PASS"
     },
     {
       "test": "test_approved_normalization_reversible_journal_no_unknown_sidecar_write",
-      "source": "tests/integration/test_release_contracts.py:61",
+      "source": "tests/integration/test_release_contracts.py:71",
       "status": "PASS"
     },
     {
       "test": "test_T23_shared_content_dependencies_ignore_inode_counts",
-      "source": "tests/integration/test_release_contracts.py:108",
+      "source": "tests/integration/test_release_contracts.py:118",
       "status": "PASS"
     },
     {
       "test": "test_T17_worker_preserves_intentional_pause_without_start",
-      "source": "tests/integration/test_release_contracts.py:129",
+      "source": "tests/integration/test_release_contracts.py:139",
       "status": "PASS"
     }
   ],
@@ -430,17 +430,17 @@
     "backend/app/storage.py": "eb681942536bb8b8b474d27c93f265e4d4eced70726127edc436da2923c6caff",
     "backend/app/subtitles.py": "c014444f62aae90c3de7ea872a1ee5963250c363b5bbde9db18567e27c4c0e85",
     "backend/app/worker.py": "4b50a15a6c0610b56146ca7be45242a6715736f168445fa7d57649273b0cc7da",
-    "tests/acceptance/test_enrichment.py": "061beb299d1e6fd9e6d0c19c31294063a8c00a91e2ae701ac7f4c3cd4a7648e7",
+    "tests/acceptance/test_enrichment.py": "1dbb047ab07c78b3a2bbbfd661bee608cf9d191560a47a698c0b0ebd83b797f0",
     "tests/acceptance/test_policies.py": "8f8eeb6d7c02a51a918d1c914d9e3d9b61e62083c347080e9cd57da7cbd1dc5e",
-    "tests/acceptance/test_security.py": "ceffab1b236822ed07254f60feedea3a510fa631f6bc3dbfbb7cd531357510f5",
+    "tests/acceptance/test_security.py": "5f89fa8df45ae8725f55e79a569b406e55645d5bfe1b119ff198654082c220d9",
     "tests/acceptance/test_workflow.py": "04f0de20cdc864c379a36a078ed24c904423e00c1c27ed500c43120d8600d962",
-    "tests/conftest.py": "98c07cdfeff8d8858ba02bb7c6520fe70f6c27effe684c72383d9685dbb623be",
+    "tests/conftest.py": "2f0b908e117be5be210aa9a9cd770ecf75b31c9a15cdeb148920c0b0017b94c1",
     "tests/contracts/test_adapters.py": "f8d08f405705b2f95e3bebb23d80d504edda876785aa2679d661cf73a9353924",
     "tests/fixtures/generate_fixture.py": "961d06a141e63daa4fcad0ac95a05474440d7921f428b2dcd0357fb847451d3f",
     "tests/integration/test_operations.py": "4ae59957767f23100fed1074cbaa18096893640d9f314002d1573261485048d7",
-    "tests/integration/test_release_contracts.py": "d204b22556fa7137d5f2e48ff90a3496061156fa5c0311d27deb6806f89a28f7",
-    "frontend/src/App.vue": "707b4cb4e39d9bf04d14f8290c0c2b7d269e018de5e47ec4b794299c9fa62781",
+    "tests/integration/test_release_contracts.py": "0225c420f6458bfcb2e8636223f89d9dbf33da5d6e408b293a87cbdd89707f76",
     "frontend/src/api.ts": "d1fee58e2a9e53ea2c3498c2177a87856960d42c622a2c4a19b4b270ecf0661f",
+    "frontend/src/App.vue": "707b4cb4e39d9bf04d14f8290c0c2b7d269e018de5e47ec4b794299c9fa62781",
     "frontend/src/main.ts": "a9a77d229d3df173585188d0cfcdeb479cf61b5a0028b67353b4f5998c9e3ad9",
     "frontend/src/style.css": "c8bda9ab9b7de83ae821cc525dfe502710a2718375d732c5b8d3cf998fc0162d",
     "frontend/src/types.ts": "23b639284cd5381483694b5052a03068ae47393450fda41e2f1290a2ff2cb02a"

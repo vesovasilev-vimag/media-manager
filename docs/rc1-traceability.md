@@ -26,13 +26,13 @@ State vocabulary: `NOT_RUN` → `PASS` / `FAIL` / `BLOCKED`; `PASS` requires a d
 | T-14 | category се сменя преди cutover | PASS | `tests/acceptance/test_workflow.py:169`; Linux synthetic/ephemeral PostgreSQL. LIVE gates separate. |
 | T-15 | symlink/path escaping извън позволения root | PASS | `tests/acceptance/test_policies.py:171`; Linux synthetic/ephemeral PostgreSQL. LIVE gates separate. |
 | T-16 | няма peers/скоростта на upload е нула | PASS | `tests/acceptance/test_policies.py:197`; Linux synthetic/ephemeral PostgreSQL. LIVE gates separate. |
-| T-17 | потребителят умишлено е спрял torrent | PASS | `tests/acceptance/test_policies.py:197`; `tests/integration/test_release_contracts.py:129`; Linux synthetic/ephemeral PostgreSQL. LIVE gates separate. |
+| T-17 | потребителят умишлено е спрял torrent | PASS | `tests/acceptance/test_policies.py:197`; `tests/integration/test_release_contracts.py:139`; Linux synthetic/ephemeral PostgreSQL. LIVE gates separate. |
 | T-18 | Automatic Torrent Management / category path | PASS | `tests/acceptance/test_policies.py:207`; Linux synthetic/ephemeral PostgreSQL. LIVE gates separate. |
 | T-19 | NAS не поддържа hardlinks | PASS | `tests/acceptance/test_policies.py:218`; Linux synthetic/ephemeral PostgreSQL. LIVE gates separate. |
 | T-20 | ръчно редактиран NFO | PASS | `tests/acceptance/test_policies.py:237`; Linux synthetic/ephemeral PostgreSQL. LIVE gates separate. |
 | T-21 | еднакъв TMDb ID, различна edition | PASS | `tests/acceptance/test_policies.py:68`; Linux synthetic/ephemeral PostgreSQL. LIVE gates separate. |
 | T-22 | Jellyfin refresh accepted, scan не е приключил | PASS | `tests/acceptance/test_workflow.py:180`; Linux synthetic/ephemeral PostgreSQL. LIVE gates separate. |
-| T-23 | два torrents сеедват общо съдържание | PASS | `tests/acceptance/test_security.py:78`; `tests/integration/test_release_contracts.py:108`; Linux synthetic/ephemeral PostgreSQL. LIVE gates separate. |
+| T-23 | два torrents сеедват общо съдържание | PASS | `tests/acceptance/test_security.py:78`; `tests/integration/test_release_contracts.py:118`; Linux synthetic/ephemeral PostgreSQL. LIVE gates separate. |
 | T-24 | multi-episode + Season 00 | PASS | `tests/acceptance/test_policies.py:149`; Linux synthetic/ephemeral PostgreSQL. LIVE gates separate. |
 | T-25 | \`bul\` audio tag, но реален звук на друг език | PASS | `tests/acceptance/test_policies.py:84`; Linux synthetic/ephemeral PostgreSQL. LIVE gates separate. |
 | T-26 | Human BG verification с валиден stream fingerprint, copy без byte change | PASS | `tests/acceptance/test_enrichment.py:126`; `tests/acceptance/test_enrichment.py:227`; `tests/acceptance/test_policies.py:101`; Linux synthetic/ephemeral PostgreSQL. LIVE gates separate. |

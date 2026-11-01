@@ -91,14 +91,19 @@ services:
     image: ${POSTGRES_IMAGE:?Set approved pinned postgres image digest}
     networks: [backend]
     environment:
-      POSTGRES_USER: vimag
+      POSTGRES_USER: vimag_cluster_admin
       POSTGRES_DB: vimag
-      POSTGRES_PASSWORD_FILE: /run/secrets/db_password
-    secrets: [db_password]
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_admin_password
+    secrets: [db_password, db_admin_password]
     volumes:
       - type: bind
         source: ${PGDATA_HOST:?Set preflight-verified local ext4/XFS directory}
         target: /var/lib/postgresql/data
+        bind: {create_host_path: false}
+      - type: bind
+        source: ./scripts/init-db.sql
+        target: /docker-entrypoint-initdb.d/10-vimag.sql
+        read_only: true
         bind: {create_host_path: false}
     restart: unless-stopped
     shm_size: 256m
@@ -114,6 +119,7 @@ networks:
   backend: {internal: true}
 secrets:
   db_password: {file: ./secrets/db_password}
+  db_admin_password: {file: ./secrets/db_admin_password}
   setup_token: {file: ./secrets/setup_token}
   qbt_api_key: {file: ./secrets/qbt_api_key}
   qbt_username: {file: ./secrets/qbt_username}

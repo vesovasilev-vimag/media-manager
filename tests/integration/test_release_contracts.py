@@ -26,6 +26,16 @@ def test_production_four_containers_worker_only_single_nas_bind() -> None:
     assert all(v["bind"]["create_host_path"] is False for v in volumes)
     assert config["services"]["worker"]["environment"]["VIMAG_WRITE_ENABLED"] == "false"
     assert config["networks"]["backend"]["internal"] is True
+    assert (
+        config["services"]["db"]["environment"]["POSTGRES_USER"]
+        == "vimag_cluster_admin"
+    )
+    for name in ["api", "worker"]:
+        assert "db_admin_password" not in config["services"][name]["secrets"]
+    assert any(
+        v["target"] == "/docker-entrypoint-initdb.d/10-vimag.sql" and v["read_only"]
+        for v in config["services"]["db"]["volumes"]
+    )
 
 
 def test_pending_manifest_cannot_be_deployed() -> None:

@@ -33,3 +33,7 @@ The `codex/rc1` release workflow repeats CI/security, verifies the authorized Do
 ## ENG-13 — Operational diagnosis and calibrated quality review
 
 Worker emits local structured JSON state/task spans with reduced internal IDs and elapsed duration, without media paths, torrent hashes, HTTP payloads or exception repr. Authenticated readiness exposes Jellyfin independently and marks expired Worker heartbeats STALE. Quality comparison extracts actual ffprobe factors for both versions; source provenance and unknown HDR remain explicitly unverified. Until G-05 calibration passes, material improvement requires an explicit admin checkbox plus recorded reason, actor and time; resolution alone never supplies that evidence.
+
+## ENG-14 — PostgreSQL privilege separation
+
+Production bootstrap uses a distinct administrator secret kept solely in PostgreSQL. Runtime role owns only the dedicated application database, with all cluster-level role attributes disabled. This preserves schema migration/backup capability without superuser, CREATE DATABASE/ROLE, replication or RLS bypass. Deployment rejects an existing privileged application role instead of silently changing it. CI initializes a real disposable PostgreSQL from the production SQL and verifies role flags plus ordinary schema/data operations; development's database-creation fixture credentials remain explicitly disposable.

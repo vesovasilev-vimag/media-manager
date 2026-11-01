@@ -37,6 +37,9 @@ def main() -> None:
             raise RuntimeError("External deployment precondition missing: " + key)
     run(compose + ["pull"])
     run(compose + ["up", "-d", "--wait", "db"])
+    privileges = run(compose + ["exec", "-T", "db", "psql", "-U", "vimag", "-d", "vimag", "-tAc", "SELECT rolsuper,rolcreatedb,rolcreaterole,rolreplication,rolbypassrls FROM pg_roles WHERE rolname=current_user"], capture_output=True, text=True).stdout.strip()
+    if privileges != "f|f|f|f|f":
+        raise RuntimeError("Runtime database role has forbidden cluster privileges; deployment stopped")
     # Capture the pre-migration state, including a genuinely empty first database.
     backup = Path("backups/predeploy.backup")
     backup.parent.mkdir(parents=True, exist_ok=True)
