@@ -7,7 +7,7 @@ BEGIN
   END IF;
   EXECUTE format(
     'CREATE ROLE vimag LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS PASSWORD %L',
-    btrim(pg_read_file('/run/secrets/db_password'))
+    btrim(pg_read_file('/run/secrets/db_password'), E'\r\n')
   );
 END
 $bootstrap$;
