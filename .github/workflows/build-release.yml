@@ -1,6 +1,7 @@
 name: Build and publish RC1
 on:
   push:
+    branches: [codex/rc1]
     tags: ['v1.0.0-rc.1']
   workflow_dispatch:
 permissions: {contents: read}
@@ -12,8 +13,30 @@ jobs:
     uses: ./.github/workflows/ci.yml
   security:
     uses: ./.github/workflows/security.yml
-  publish:
+  prepare:
     needs: [verify, security]
+    runs-on: ubuntu-24.04
+    permissions: {contents: write}
+    steps:
+      - name: Registry and source preconditions
+        env:
+          HUB_USER: ${{ secrets.DOCKERHUB_USERNAME }}
+          HUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: |
+          test "$HUB_USER" = vesovasilev || { echo 'BLOCKED: DOCKERHUB_USERNAME must name the authorized namespace'; exit 1; }
+          test -n "$HUB_TOKEN" || { echo 'BLOCKED: DOCKERHUB_TOKEN is missing'; exit 1; }
+          case "$GITHUB_REF" in refs/heads/codex/rc1|refs/tags/v1.0.0-rc.1) ;; *) echo 'Unapproved release ref'; exit 1;; esac
+      - name: Create exact RC tag only after all gates pass
+        env: {GH_TOKEN: '${{ github.token }}'}
+        run: |
+          if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/v1.0.0-rc.1" > existing-tag.json 2> tag-error.txt; then
+            test "$(jq -r .object.sha existing-tag.json)" = "$GITHUB_SHA" || { echo 'BLOCKED: RC tag already points to a different commit; refusing overwrite'; exit 1; }
+          else
+            grep -q '404' tag-error.txt || { echo 'BLOCKED: cannot verify existing tag'; exit 1; }
+            gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" -f ref=refs/tags/v1.0.0-rc.1 -f sha="$GITHUB_SHA" > /dev/null
+          fi
+  publish:
+    needs: prepare
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     permissions: {contents: read, id-token: write}
@@ -25,6 +48,7 @@ jobs:
           - {image: backend, context: backend}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with: {ref: v1.0.0-rc.1}
       - name: Publication preconditions
         env:
           HUB_USER: ${{ secrets.DOCKERHUB_USERNAME }}
@@ -32,7 +56,7 @@ jobs:
         run: |
           test "$HUB_USER" = vesovasilev || { echo 'BLOCKED: DOCKERHUB_USERNAME must name the authorized namespace'; exit 1; }
           test -n "$HUB_TOKEN" || { echo 'BLOCKED: DOCKERHUB_TOKEN is missing'; exit 1; }
-          test "${GITHUB_REF}" = refs/tags/v1.0.0-rc.1 || { echo 'Only the exact reviewed RC tag can publish'; exit 1; }
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA" || { echo 'RC tag/source mismatch'; exit 1; }
       - uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130
       - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
       - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9
