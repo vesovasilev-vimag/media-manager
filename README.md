@@ -2,7 +2,7 @@
 
 **Reliable post-download media organization for qBittorrent and Jellyfin.**
 
-> **Project status:** Design and Technical Scope v1.0 approved and published (2026-11-01). No production application, container image, or deployment exists yet. The interactive HTML wireframe is a simulation only.
+> **Project status:** Technical Scope v1.0 and Implementation Design v1.0 approved and published (2026-11-01). No production application, container image, or deployment exists yet. The interactive HTML wireframe is a simulation only.
 
 ViMag Media Manager is a planned self-hosted web application for safely importing completed qBittorrent downloads into a NAS-based Jellyfin media library. It will identify media, compare library versions, prioritize verified Bulgarian audio, apply consistent filenames and directory structures, find Bulgarian subtitles, publish to Jellyfin, and verify that torrents still seed correctly after relocation.
 
@@ -99,6 +99,7 @@ No Docker image, GitHub Actions workflow, token, or `docker-compose.yml` is crea
 ## Documentation and approved UX reference
 
 - [Approved Technical Scope v1.0](docs/technical-scope-v1.0.md): boundaries, design decisions, workflows, data model, safety rules, acceptance tests and open questions.
+- [Approved Implementation Design v1.0](docs/implementation-design-v1.0.md): Docker architecture, PostgreSQL job queue, qBittorrent/Jellyfin contracts, operation journal, safety gates and rollout plan; documentation approval is not authorization to deploy.
 - [Approved interactive HTML wireframe v1.0](wireframes/vimag-media-manager-v1.0.html): local, browser-run demo with simulated jobs; **not** a running application.
 
 ## Project phases
