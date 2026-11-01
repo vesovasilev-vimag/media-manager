@@ -1,6 +1,6 @@
 # RC1 evidence and acceptance traceability
 
-**Status:** 67 Linux automated tests PASS; all 43 T and 17 IT identifiers traced below. External providers are emulated, PostgreSQL/filesystem/ffprobe/backup tools are real disposable fixtures. Live operational gates remain separate and unresolved. Sanitized results and source hashes: [automated evidence](rc1-automated-evidence.json).
+**Status:** 70 executed Linux tests; T/IT requirement IDs PASS=60, FAIL=0, BLOCKED=0. External providers are emulated; PostgreSQL/filesystem/ffprobe/backup tools are real disposable fixtures. Live operational gates remain separate. [Sanitized evidence and source hashes](rc1-automated-evidence.json).
 
 Read `docs/technical-scope-v1.0.md` and `docs/implementation-design-v1.0.md` for the **full** test definitions. This table is an index; concise descriptions do not replace exact preconditions and expected behavior. Codex must populate every evidence entry and never pass a test merely because code exists.
 
@@ -10,12 +10,12 @@ State vocabulary: `NOT_RUN` → `PASS` / `FAIL` / `BLOCKED`; `PASS` requires a d
 
 | ID | Scenario (consult source for complete semantics) | Status | Exact automated test and live evidence |
 |---|---|---|---|
-| T-01 | New movie | PASS | `tests/acceptance/test_enrichment.py:138`; `tests/acceptance/test_workflow.py:18`; Linux synthetic/ephemeral PostgreSQL. LIVE gates separate. |
-| T-02 | Existing 1080p verified BG, new 2160p EN | PASS | `tests/acceptance/test_policies.py:44`; Linux synthetic/ephemeral PostgreSQL. LIVE gates separate. |
+| T-01 | New movie | PASS | `tests/acceptance/test_enrichment.py:197`; `tests/acceptance/test_workflow.py:18`; Linux synthetic/ephemeral PostgreSQL. LIVE gates separate. |
+| T-02 | Existing 1080p verified BG, new 2160p EN | PASS | `tests/acceptance/test_enrichment.py:67`; `tests/acceptance/test_policies.py:44`; Linux synthetic/ephemeral PostgreSQL. LIVE gates separate. |
 | T-03 | Better new BG version | PASS | `tests/acceptance/test_policies.py:61`; Linux synthetic/ephemeral PostgreSQL. LIVE gates separate. |
 | T-04 | Season pack с много епизоди | PASS | `tests/acceptance/test_workflow.py:42`; Linux synthetic/ephemeral PostgreSQL. LIVE gates separate. |
 | T-05 | NAS unavailable по време на copy | PASS | `tests/acceptance/test_workflow.py:68`; Linux synthetic/ephemeral PostgreSQL. LIVE gates separate. |
-| T-06 | BG subtitle timing mismatch | PASS | `tests/acceptance/test_enrichment.py:98`; `tests/acceptance/test_policies.py:350`; Linux synthetic/ephemeral PostgreSQL. LIVE gates separate. |
+| T-06 | BG subtitle timing mismatch | PASS | `tests/acceptance/test_enrichment.py:157`; `tests/acceptance/test_policies.py:350`; Linux synthetic/ephemeral PostgreSQL. LIVE gates separate. |
 | T-07 | Ambiguous metadata | PASS | `tests/acceptance/test_policies.py:74`; Linux synthetic/ephemeral PostgreSQL. LIVE gates separate. |
 | T-08 | Existing torrent dependency | PASS | `tests/acceptance/test_security.py:78`; Linux synthetic/ephemeral PostgreSQL. LIVE gates separate. |
 | T-09 | completion event идва 3 пъти | PASS | `tests/acceptance/test_workflow.py:85`; Linux synthetic/ephemeral PostgreSQL. LIVE gates separate. |
@@ -35,14 +35,14 @@ State vocabulary: `NOT_RUN` → `PASS` / `FAIL` / `BLOCKED`; `PASS` requires a d
 | T-23 | два torrents сеедват общо съдържание | PASS | `tests/acceptance/test_security.py:78`; `tests/integration/test_release_contracts.py:108`; Linux synthetic/ephemeral PostgreSQL. LIVE gates separate. |
 | T-24 | multi-episode + Season 00 | PASS | `tests/acceptance/test_policies.py:149`; Linux synthetic/ephemeral PostgreSQL. LIVE gates separate. |
 | T-25 | \`bul\` audio tag, но реален звук на друг език | PASS | `tests/acceptance/test_policies.py:84`; Linux synthetic/ephemeral PostgreSQL. LIVE gates separate. |
-| T-26 | Human BG verification с валиден stream fingerprint, copy без byte change | PASS | `tests/acceptance/test_enrichment.py:168`; `tests/acceptance/test_enrichment.py:67`; `tests/acceptance/test_policies.py:101`; Linux synthetic/ephemeral PostgreSQL. LIVE gates separate. |
-| T-27 | Некоректен prior BG evidence за друг stream/file | PASS | `tests/acceptance/test_enrichment.py:168`; `tests/acceptance/test_enrichment.py:67`; `tests/acceptance/test_policies.py:130`; Linux synthetic/ephemeral PostgreSQL. LIVE gates separate. |
-| T-28 | 1080p BG verified срещу 2160p EN със съществено по-добро качество | PASS | `tests/acceptance/test_policies.py:44`; Linux synthetic/ephemeral PostgreSQL. LIVE gates separate. |
+| T-26 | Human BG verification с валиден stream fingerprint, copy без byte change | PASS | `tests/acceptance/test_enrichment.py:126`; `tests/acceptance/test_enrichment.py:227`; `tests/acceptance/test_policies.py:101`; Linux synthetic/ephemeral PostgreSQL. LIVE gates separate. |
+| T-27 | Некоректен prior BG evidence за друг stream/file | PASS | `tests/acceptance/test_enrichment.py:126`; `tests/acceptance/test_enrichment.py:227`; `tests/acceptance/test_policies.py:130`; Linux synthetic/ephemeral PostgreSQL. LIVE gates separate. |
+| T-28 | 1080p BG verified срещу 2160p EN със съществено по-добро качество | PASS | `tests/acceptance/test_enrichment.py:67`; `tests/acceptance/test_policies.py:44`; Linux synthetic/ephemeral PostgreSQL. LIVE gates separate. |
 | T-29 | Auto-match само по сходно title/year с competing provider IDs | PASS | `tests/acceptance/test_policies.py:74`; Linux synthetic/ephemeral PostgreSQL. LIVE gates separate. |
 | T-30 | Quarantine proposal за inferior version с активен torrent dependency | PASS | `tests/acceptance/test_security.py:78`; Linux synthetic/ephemeral PostgreSQL. LIVE gates separate. |
 | T-31 | Изрично одобрена quarantine без dependency и с валиден snapshot | PASS | `tests/acceptance/test_policies.py:279`; `tests/acceptance/test_security.py:99`; Linux synthetic/ephemeral PostgreSQL. LIVE gates separate. |
-| T-32 | Непознат/ръчно редактиран \`movie.nfo\` или \`poster.jpg\` | PASS | `tests/acceptance/test_enrichment.py:202`; `tests/acceptance/test_policies.py:237`; Linux synthetic/ephemeral PostgreSQL. LIVE gates separate. |
-| T-33 | BG subtitles са за неправилна edition или timing drift | PASS | `tests/acceptance/test_enrichment.py:98`; `tests/acceptance/test_policies.py:350`; Linux synthetic/ephemeral PostgreSQL. LIVE gates separate. |
+| T-32 | Непознат/ръчно редактиран \`movie.nfo\` или \`poster.jpg\` | PASS | `tests/acceptance/test_enrichment.py:261`; `tests/acceptance/test_policies.py:237`; Linux synthetic/ephemeral PostgreSQL. LIVE gates separate. |
+| T-33 | BG subtitles са за неправилна edition или timing drift | PASS | `tests/acceptance/test_enrichment.py:157`; `tests/acceptance/test_policies.py:350`; Linux synthetic/ephemeral PostgreSQL. LIVE gates separate. |
 | T-34 | NAS + qBt + Jellyfin verified, BG subtitles unavailable | PASS | `tests/acceptance/test_policies.py:365`; Linux synthetic/ephemeral PostgreSQL. LIVE gates separate. |
 | T-35 | Jellyfin refresh 200, no recognized media entry | PASS | `tests/acceptance/test_policies.py:365`; `tests/acceptance/test_workflow.py:180`; Linux synthetic/ephemeral PostgreSQL. LIVE gates separate. |
 | T-36 | Mixed torrent: единият Child има failed publish | PASS | `tests/acceptance/test_policies.py:365`; `tests/acceptance/test_workflow.py:194`; Linux synthetic/ephemeral PostgreSQL. LIVE gates separate. |

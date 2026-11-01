@@ -27,6 +27,7 @@ from app.domain import (
     identity_dict,
     name_for,
     seeding_capable,
+    technical_profile,
 )
 from app.observability import emit
 from app.settings import Settings
@@ -346,20 +347,22 @@ class Worker:
             if old:
                 approval_required = True
                 for asset in old:
-                    video = next(s for s in d["probe"]["streams"] if s.get("codec_type") == "video")
                     decision = compare(
                         {
+                            **technical_profile(asset["data"].get("probe", {})),
                             **asset["data"],
                             "edition": asset["edition"],
                             "identity_key": identity_key,
                         },
                         {
+                            **technical_profile(d["probe"]),
                             "identity_key": identity_key,
                             "edition": identity.edition,
                             "integrity": True,
                             "bg": d["bg"],
-                            "height": video.get("height"),
-                            "codec": video.get("codec_name"),
+                            "material_improvement_verified": d.get("quality_review", {}).get(
+                                "material_improvement_verified", False
+                            ),
                         },
                     )
                     self.evidence(

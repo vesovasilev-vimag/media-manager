@@ -26,6 +26,10 @@
 For each undecided technical value, record date, stable ID, decision, evidence, alternative considered and test reference. Do not redefine product scope, silently downgrade a feature, hardcode private infrastructure data, or turn a missing external service into a fake `PASS`. Measured operational defaults belong in versioned configuration and test evidence.
 
 Record blockers in the release report rather than asking recurring owner questions. If user input is truly unavoidable, finish all independent work before reporting a single, consolidated external dependency.
-## ENG-10 — Autonomous RC tag preparation
+## ENG-12 — Autonomous RC tag preparation
 
 The `codex/rc1` release workflow repeats CI/security, verifies the authorized Docker Hub namespace and token presence, then uses a narrowly scoped `contents: write` job to create the exact RC tag. It refuses any tag pointing elsewhere; publication checks out that tag and verifies its commit, and refuses existing image tags. This permits the authorized uninterrupted release without depending on workstation Git credentials. No production permission or write gate is changed.
+
+## ENG-13 — Operational diagnosis and calibrated quality review
+
+Worker emits local structured JSON state/task spans with reduced internal IDs and elapsed duration, without media paths, torrent hashes, HTTP payloads or exception repr. Authenticated readiness exposes Jellyfin independently and marks expired Worker heartbeats STALE. Quality comparison extracts actual ffprobe factors for both versions; source provenance and unknown HDR remain explicitly unverified. Until G-05 calibration passes, material improvement requires an explicit admin checkbox plus recorded reason, actor and time; resolution alone never supplies that evidence.

@@ -64,6 +64,65 @@ def test_operational_logs_exclude_media_and_remote_payloads(
     )
 
 
+def test_T02_T28_comparison_uses_real_probe_factors_and_explicit_material_review(
+    stack: Any,
+) -> None:
+    worker, qbt, _, _ = stack
+    from conftest import synthetic_probe
+
+    source = torrent(worker.db)
+    analysis = synthetic_probe(worker.cfg.staging_root / source.files[0]["name"])
+    old = __import__("copy").deepcopy(analysis)
+    analysis["streams"][0].update(
+        height=2160, codec_name="hevc", color_transfer="smpte2084", bit_rate="25000000"
+    )
+    worker.probe = lambda path: analysis
+    with worker.db.transaction() as conn:
+        conn.execute(
+            insert(p.assets).values(
+                root="library",
+                relative_path="Movies/old.mkv",
+                identity_key="tmdb:movie:1",
+                edition="Theatrical",
+                fingerprint="f" * 64,
+                data={"probe": old, "bg": "BG_VERIFIED", "integrity": True},
+            )
+        )
+    jid = onboard(worker, qbt, source)
+    drive(worker, 1)
+    item = worker.db.one(select(p.items))
+    job = worker.db.one(select(p.jobs).where(p.jobs.c.id == jid))
+    client = login(worker.db)
+    assert (
+        client.post(
+            f"/api/v1/jobs/{jid}/review",
+            json={
+                "item_id": item["id"],
+                "expected_revision": job["revision"],
+                "quality_decision": "KeepBoth",
+                "material_improvement_verified": True,
+                "reason": "Synthetic manual HDR/codec/bitrate quality assessment",
+            },
+        ).status_code
+        == 202
+    )
+    drive(worker, 1)
+    result = worker.db.rows(
+        select(p.evidence_tables["quality_decisions"]).order_by(
+            p.evidence_tables["quality_decisions"].c.created_at
+        )
+    )[-1]["data"]
+    assert result["decision"] == "KeepBoth"
+    assert result["factors"]["height"] == [1080, 2160] and result["factors"][
+        "channels"
+    ] == [2, 2]
+    assert (
+        result["factors"]["hdr"] == ["UNVERIFIED", "HDR"]
+        and result["factors"]["bitrate"][1] == "25000000"
+    )
+    assert qbt.commands == []
+
+
 def test_T26_T27_library_bg_evidence_preserves_bytes(stack: Any) -> None:
     worker, qbt, _, _ = stack
     onboard(worker, qbt, torrent(worker.db))

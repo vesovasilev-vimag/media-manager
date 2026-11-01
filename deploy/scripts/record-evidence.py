@@ -32,6 +32,7 @@ for case in suite.iter("testcase"):
 statuses = {key: "FAIL" if any(v["status"] == "FAIL" for v in values) else "PASS" if values and all(v["status"] == "PASS" for v in values) else "BLOCKED" for key,values in evidence.items()}
 ledger = root / "docs/rc1-traceability.md"
 lines = ledger.read_text(encoding="utf-8").splitlines()
+lines = [f"**Status:** {len(results)} executed Linux tests; T/IT requirement IDs PASS={list(statuses.values()).count('PASS')}, FAIL={list(statuses.values()).count('FAIL')}, BLOCKED={list(statuses.values()).count('BLOCKED')}. External providers are emulated; PostgreSQL/filesystem/ffprobe/backup tools are real disposable fixtures. Live operational gates remain separate. [Sanitized evidence and source hashes](rc1-automated-evidence.json)." if line.startswith("**Status:**") else line for line in lines]
 for index,line in enumerate(lines):
     match = re.match(r"\| ((?:IT|T)-\d{2}) \|",line)
     if not match:

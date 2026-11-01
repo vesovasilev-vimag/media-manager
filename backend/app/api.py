@@ -48,6 +48,7 @@ class PlanAction(Input):
 class Review(Input):
     expected_revision: int = Field(ge=0)
     item_id: UUID
+    material_improvement_verified: bool = False
     identity: dict[str, Any] | None = None
     quality_decision: (
         Literal["KeepBoth", "KeepBGPreferred", "PreferBetterBG", "NeedsReview", "Skip"] | None
@@ -544,6 +545,7 @@ def create_app(config: Settings | None = None, database: p.Database | None = Non
                 if body.quality_decision:
                     data["quality_review"] = {
                         "decision": body.quality_decision,
+                        "material_improvement_verified": body.material_improvement_verified,
                         "actor": session["user_id"],
                         "time": p.now().isoformat(),
                         "reason": safe_note(body.reason),

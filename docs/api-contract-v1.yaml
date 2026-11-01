@@ -1467,6 +1467,10 @@ components:
           type: string
           format: uuid
           title: Item Id
+        material_improvement_verified:
+          type: boolean
+          title: Material Improvement Verified
+          default: false
         identity:
           anyOf:
           - additionalProperties: true

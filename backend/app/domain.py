@@ -220,6 +220,27 @@ def bg_state(probe: dict[str, Any], fingerprint: str, evidence: list[dict[str, A
     return "NO_BG"
 
 
+def technical_profile(analysis: dict[str, Any]) -> dict[str, Any]:
+    streams = analysis.get("streams", [])
+    video: dict[str, Any] = next((s for s in streams if s.get("codec_type") == "video"), {})
+    audio = [s for s in streams if s.get("codec_type") == "audio"]
+    transfer = video.get("color_transfer")
+    return {
+        "source": "UNVERIFIED",
+        "codec": video.get("codec_name"),
+        "height": video.get("height"),
+        "bitrate": video.get("bit_rate") or analysis.get("format", {}).get("bit_rate"),
+        "hdr": "HDR"
+        if transfer in {"smpte2084", "arib-std-b67"}
+        else "SDR"
+        if transfer == "bt709"
+        else "UNVERIFIED",
+        "channels": max((int(s.get("channels", 0)) for s in audio), default=0),
+        "duration": analysis.get("format", {}).get("duration"),
+        "frame_rate": video.get("avg_frame_rate") or video.get("r_frame_rate"),
+    }
+
+
 def compare(old: dict[str, Any], new: dict[str, Any]) -> dict[str, Any]:
     factors = {
         k: [old.get(k), new.get(k)]
@@ -232,6 +253,8 @@ def compare(old: dict[str, Any], new: dict[str, Any]) -> dict[str, Any]:
             "bitrate",
             "hdr",
             "channels",
+            "duration",
+            "frame_rate",
             "bg",
         )
     }

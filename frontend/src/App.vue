@@ -90,7 +90,8 @@ const reviewItem = ref(""),
   reviewEpisodes = ref("1"),
   reviewArtist = ref(""),
   reviewReason = ref(""),
-  reviewDecision = ref("KeepBoth");
+  reviewDecision = ref("KeepBoth"),
+  materialImprovement = ref(false);
 const approvalChecked = ref(false),
   pendingQuarantine = ref<Plan>(),
   quarantineRows = ref<
@@ -190,6 +191,7 @@ const normalizingAsset = ref<Asset>();
 function normalizeAsset(asset: Asset) {
   normalizingAsset.value = asset;
   reviewItem.value = "asset:" + asset.id;
+  materialImprovement.value = false;
   reviewTitle.value = asset.data.identity?.title ?? "";
   reviewYear.value = asset.data.identity?.year ?? 2026;
   reviewType.value = asset.data.identity?.media_type ?? "movie";
@@ -379,6 +381,7 @@ function editItem(id: string) {
   const item = selected.value?.media_items?.find((i) => i.id === id);
   if (!item) return;
   reviewItem.value = id;
+  materialImprovement.value = false;
   const i = item.data.identity;
   reviewTitle.value = i?.title ?? "";
   reviewYear.value = i?.year ?? 2026;
@@ -421,6 +424,7 @@ async function saveReview() {
       item_id: reviewItem.value,
       identity,
       quality_decision: reviewDecision.value,
+      material_improvement_verified: materialImprovement.value,
       reason: reviewReason.value,
     });
     reviewItem.value = "";
@@ -1484,6 +1488,11 @@ onUnmounted(() => {
             </select></label
           >
         </div>
+        <label class="check"
+          ><input v-model="materialImprovement" type="checkbox" />Проверих
+          съществено подобрение на качеството; описах доказателствата
+          по-долу.</label
+        >
         <label
           >Доказателства и причина<textarea
             v-model="reviewReason"

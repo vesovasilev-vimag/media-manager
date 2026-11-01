@@ -8,7 +8,7 @@ Initialize local secrets with `sh deploy/scripts/init-dev.sh` (or the PowerShell
 
 For the dev UI, build the four dev services, run `docker compose -f deploy/compose.dev.yaml run --rm api python -m alembic upgrade head`, then `up -d`. Open loopback `http://localhost:8088`. Enrollment reads the generated private setup token file locally; there is no default admin/password. Dev uses emulators and synthetic volumes; production settings reject these adapters.
 
-CI runs backend/frontend checks and both image builds. The security workflow audits hash-locked Python/npm dependencies, Bandit and Gitleaks, and scans both runtime images. The release workflow repeats CI/security against the exact RC tag before pushing to Docker Hub. Required repository secrets are `DOCKERHUB_USERNAME=vesovasilev` and a scoped `DOCKERHUB_TOKEN`; values must never be sent in chat or logs.
+CI runs backend/frontend checks and both image builds. The security workflow audits hash-locked Python/npm dependencies, Bandit and Gitleaks, and scans both runtime images. The release workflow repeats CI/security on `codex/rc1`, checks registry credentials, creates the exact immutable RC tag and checks out that verified commit before pushing. A tag-triggered run follows the same gates. Required repository secrets are `DOCKERHUB_USERNAME=vesovasilev` and a scoped `DOCKERHUB_TOKEN`; values must never be sent in chat or logs.
 
 `build-release.yml` produces SBOM/provenance through Buildx, actual registry digests and `rc1-deployment.tar.gz`. The manifest records source commit, compatible schema and both supported Linux architectures. A pending manifest is deliberately undeployable. Existing RC image tags are not overwritten blindly.
 
