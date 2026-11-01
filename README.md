@@ -69,7 +69,7 @@ The movie file prefix intentionally matches the folder name for Jellyfin multipl
 - **Safe metadata ownership:** updates are automatic only for unchanged ViMag-owned NFO/artwork; external edits require review.
 - **Quarantine and restore:** approved and dependency-safe; permanent deletion of library files is out of scope for v1.
 - **Seeding and publish verification:** no successful completion without valid torrent mapping and Jellyfin verification; missing noncritical subtitles can yield `CompletedWithWarnings`.
-- **Technical prerequisites:** G-01..G-06 are not yet verified and block write-capable production operations.
+- **Technical prerequisites:** G-01 authenticated read-only API discovery PASS; G-02 host/Docker scratch hardlinks PASS; remaining G-01 write, G-02 production worker, G-03..G-06 and G-DB-01 gates require validation before controlled live writes.
 
 ## Planned capabilities
 
@@ -90,16 +90,18 @@ The movie file prefix intentionally matches the folder name for Jellyfin multipl
 - Host: ViMag (Linux / Docker Compose), reverse proxy Traefik v3.6, private access via Tailscale/internal DNS.
 - Proposed internal URL: `https://manager.vimag.app`.
 - Existing Docker network: `vimag_default`.
-- Proposed stack: Vue 3 frontend; FastAPI backend; persistent background worker; SQLite initially; ffprobe / MediaInfo; qBittorrent Web API; Jellyfin REST API; TMDb and configurable subtitle providers.
+- Approved stack: Vue 3 frontend; FastAPI backend; separate persistent background worker; **PostgreSQL** with durable queue/leases; ffprobe / MediaInfo; qBittorrent Web API; Jellyfin REST API; TMDb and configurable subtitle providers. Four runtime containers, two custom images.
 - Target Docker Hub account for **future** images: `vesovasilev` (publication/CI/CD not configured).
 - No extra message broker or database infrastructure until measurements justify it.
 
-No Docker image, GitHub Actions workflow, token, or `docker-compose.yml` is created by this documentation phase.
+RC1 development preparation is published in GitHub; runtime application, CI workflows, Docker images and production Compose are **not yet implemented**. Codex must build and validate them before RC1.
 
 ## Documentation and approved UX reference
 
 - [Approved Technical Scope v1.0](docs/technical-scope-v1.0.md): boundaries, design decisions, workflows, data model, safety rules, acceptance tests and open questions.
-- [Approved Implementation Design v1.0](docs/implementation-design-v1.0.md): Docker architecture, PostgreSQL job queue, qBittorrent/Jellyfin contracts, operation journal, safety gates and rollout plan; documentation approval is not authorization to deploy.
+- [Approved Implementation Design v1.0](docs/implementation-design-v1.0.md): Docker architecture, PostgreSQL job queue, qBittorrent/Jellyfin contracts, operation journal, safety gates and rollout plan.
+- [Codex RC1 kickoff](docs/rc1-kickoff.md): single uninterrupted full-scope implementation, autonomous CI checks, image publication, then authorized postdeploy integration with one torrent.
+- [Development workstation setup](docs/dev-environment.md), [Codex agent rules](AGENTS.md), [RC1 acceptance/evidence ledger](docs/rc1-traceability.md) and [release report](docs/rc1-release-report.md).
 - [Approved interactive HTML wireframe v1.0](wireframes/vimag-media-manager-v1.0.html): local, browser-run demo with simulated jobs; **not** a running application.
 
 ## Project phases
@@ -108,10 +110,11 @@ No Docker image, GitHub Actions workflow, token, or `docker-compose.yml` is crea
 | --- | --- | --- |
 | A. UX wireframe | **Approved** | Interactive scenarios reviewed |
 | B. Technical scope and architecture | **Approved — v1.0** | All 22 product decisions confirmed; six technical safety gates remain before real file operations |
-| C. Implementation | **Not started** | Scope approval |
+| C. Implementation | **Codex kickoff prepared** | Autonomous implementation of entire approved scope through RC1; no owner-facing milestones |
 | D. Test in isolated media fixtures | **Not started** | Tests demonstrate torrent integrity and recoverability |
 | E. NAS/qBittorrent pilot | **Not started** | Backup, rollback and read-only baseline verified |
-| F. Production deployment / Docker Hub publishing | **Not started** | Operational acceptance |
+| F. Docker Hub image publication | **Not started** | All automated RC checks green and registry credentials available |
+| G. Controlled deployment + one functional test torrent | **Not started** | Images published; backups, host access, safety gates and approved isolated test |
 
 ## Safety and security notes
 
@@ -130,4 +133,4 @@ No Docker image, GitHub Actions workflow, token, or `docker-compose.yml` is crea
 
 ---
 
-**Project rule:** Technical scope and safe import semantics are agreed **before** application development or deployment begins.
+**Project rule:** Codex implements the full approved scope without intermediate owner questions, demos or manual tests. Autonomous CI checks are mandatory; Docker Hub publication precedes deployment; only an isolated new test torrent may be used for postdeploy functional validation. Legacy torrents remain protected.
