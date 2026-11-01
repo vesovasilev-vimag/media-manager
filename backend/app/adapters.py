@@ -189,6 +189,9 @@ class Jellyfin(Remote):
     def libraries(self) -> list[dict[str, Any]]:
         return self.request("GET", "Library/VirtualFolders").json()
 
+    def health(self) -> bool:
+        return bool(self.request("GET", "System/Info").json().get("Version"))
+
     def refresh(self) -> None:
         self.request("POST", "Library/Refresh")
 

@@ -1,11 +1,67 @@
 from typing import Any
 from uuid import uuid4
+import json
+from datetime import timedelta
 
 from sqlalchemy import insert, select
 
 from app import persistence as p
 from app.domain import digest
 from conftest import login, drive, onboard, torrent
+
+
+def test_health_reports_jellyfin_outage_and_stale_worker(stack: Any) -> None:
+    worker, _, jellyfin, _ = stack
+    jellyfin.fail_auth = True
+    worker.poll()
+    client = login(worker.db)
+    health = client.get("/api/v1/health/ready").json()["worker"]
+    assert health["qbt"] == "READY" and health["jellyfin"] == "JELLYFIN_AUTH_REQUIRED"
+    assert health["state"] == "DEGRADED"
+    worker.health({"state": "READY"})
+    from sqlalchemy import update
+
+    with worker.db.transaction() as conn:
+        conn.execute(
+            update(p.settings_table)
+            .where(p.settings_table.c.key == "worker_health")
+            .values(
+                value={
+                    "state": "READY",
+                    "time": (p.now() - timedelta(hours=1)).isoformat(),
+                }
+            )
+        )
+    assert client.get("/api/v1/health/ready").json()["worker"]["state"] == "STALE"
+
+
+def test_operational_logs_exclude_media_and_remote_payloads(
+    stack: Any, capsys: Any
+) -> None:
+    worker, qbt, _, _ = stack
+    onboard(worker, qbt, torrent(worker.db))
+    drive(worker)
+    rows = [json.loads(line) for line in capsys.readouterr().out.splitlines()]
+    assert any(
+        row["event"] == "TASK_ATTEMPT" and row["duration_ms"] >= 0 for row in rows
+    )
+    assert all(
+        {
+            "timestamp",
+            "phase",
+            "severity",
+            "job_id",
+            "operation_id",
+            "result",
+            "error_code",
+            "service",
+        }
+        <= row.keys()
+        for row in rows
+    )
+    assert "Synthetic 2026" not in json.dumps(rows) and "downloads" not in json.dumps(
+        rows
+    )
 
 
 def test_T26_T27_library_bg_evidence_preserves_bytes(stack: Any) -> None:

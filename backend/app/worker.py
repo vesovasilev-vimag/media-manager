@@ -1,6 +1,5 @@
 """Single logical Worker, PostgreSQL queue, reconcile before every effect."""
 
-import json
 import re
 import signal
 import time
@@ -29,6 +28,7 @@ from app.domain import (
     name_for,
     seeding_capable,
 )
+from app.observability import emit
 from app.settings import Settings
 from app.storage import (
     atomic_sidecar,
@@ -79,6 +79,7 @@ class Worker:
             )
             if row["state"] != state:
                 self.db.event(conn, "worker", state, job_id, {"step": step})
+        emit("JOB_STATE", job_id=job_id, step=step, phase="transition", result=state)
 
     def update_item(self, item_id: str, values: dict[str, Any]) -> None:
         with self.db.transaction() as conn:
@@ -183,7 +184,20 @@ class Worker:
             raise GateError("MANUAL_CATEGORY_PATHS_UNSAFE", "BlockedExternalDependency")
         observed = self.qbt.all()
         self.db.discover(observed, automatic=self.cfg.automatic_intake)
-        self.health({"qbt": "READY", "nas": self.nas_health(), "state": "READY"})
+        jellyfin = "READY"
+        try:
+            if not self.jellyfin.health():
+                jellyfin = "UNAVAILABLE"
+        except GateError as error:
+            jellyfin = error.code
+        self.health(
+            {
+                "qbt": "READY",
+                "jellyfin": jellyfin,
+                "nas": self.nas_health(),
+                "state": "READY" if jellyfin == "READY" else "DEGRADED",
+            }
+        )
 
     def inspect(self, task: dict[str, Any], torrent: Torrent) -> None:
         self.state(task["job_id"], "Inspecting", 2)
@@ -1103,6 +1117,8 @@ class Worker:
         task = self.db.claim(self.owner)
         if not task:
             return False
+        started = time.monotonic()
+        outcome, failure = "INTERRUPTED", None
         stop_heartbeat = Event()
 
         def pulse() -> None:
@@ -1183,7 +1199,9 @@ class Worker:
             else:
                 raise GateError("UNKNOWN_TASK_KIND", "RecoveryRequired")
             self.db.finish_task(task, "DONE" if done else "RECONCILING", 1 if not done else 0)
+            outcome = "DONE" if done else "RECONCILING"
         except GateError as error:
+            outcome, failure = error.state, error.code
             if task.get("job_id"):
                 job = self.db.one(select(p.jobs).where(p.jobs.c.id == task["job_id"]))
                 self.state(task["job_id"], error.state, job["step"], {"error_code": error.code})
@@ -1203,6 +1221,16 @@ class Worker:
         finally:
             stop_heartbeat.set()
             heartbeat_thread.join(timeout=5)
+            emit(
+                "TASK_ATTEMPT",
+                job_id=task.get("job_id"),
+                operation_id=task["id"],
+                phase="finish",
+                duration_ms=int((time.monotonic() - started) * 1000),
+                result=outcome,
+                error_code=failure,
+                severity="WARNING" if failure else "INFO",
+            )
         return True
 
     def run(self) -> None:
@@ -1219,9 +1247,11 @@ class Worker:
                 time.sleep(2)
             except Exception:
                 # No exception repr: SQL/HTTP errors may contain secrets or private inventories.
-                print(
-                    json.dumps({"event": "WORKER_STOPPED", "code": "UNEXPECTED_FAILURE"}),
-                    flush=True,
+                emit(
+                    "WORKER_STOPPED",
+                    phase="shutdown",
+                    severity="CRITICAL",
+                    error_code="UNEXPECTED_FAILURE",
                 )
                 raise SystemExit(1) from None
 

@@ -98,6 +98,11 @@ class EmulatedQbt:
 
 
 class EmulatedJellyfin:
+    def health(self) -> bool:
+        if self.fail_auth:
+            raise GateError("JELLYFIN_AUTH_REQUIRED", "BlockedExternalDependency")
+        return True
+
     def __init__(self) -> None:
         self.accepted = False
         self.recognize = True

@@ -1,31 +1,41 @@
 {
-  "generated_at": "2026-11-01T15:14:42.864423+00:00",
+  "generated_at": "2026-11-01T15:40:54.689764+00:00",
   "environment": "Disposable Linux, synthetic media and emulated external services; not live ViMag",
-  "junit_sha256": "a4082879b746114d926c50aa5c29cb46ba1324618109869389521447fce57ecc",
+  "junit_sha256": "4b84f8a579592a6786bbb38768ecf5face7a1ceed52114fc69b515ce26162292",
   "tests": [
     {
+      "test": "test_health_reports_jellyfin_outage_and_stale_worker",
+      "source": "tests/acceptance/test_enrichment.py:13",
+      "status": "PASS"
+    },
+    {
+      "test": "test_operational_logs_exclude_media_and_remote_payloads",
+      "source": "tests/acceptance/test_enrichment.py:38",
+      "status": "PASS"
+    },
+    {
       "test": "test_T26_T27_library_bg_evidence_preserves_bytes",
-      "source": "tests/acceptance/test_enrichment.py:11",
+      "source": "tests/acceptance/test_enrichment.py:67",
       "status": "PASS"
     },
     {
       "test": "test_T06_T33_provider_candidate_download_is_review_only",
-      "source": "tests/acceptance/test_enrichment.py:42",
+      "source": "tests/acceptance/test_enrichment.py:98",
       "status": "PASS"
     },
     {
       "test": "test_T01_verified_subtitle_attaches_then_republishes_complete",
-      "source": "tests/acceptance/test_enrichment.py:82",
+      "source": "tests/acceptance/test_enrichment.py:138",
       "status": "PASS"
     },
     {
       "test": "test_T26_T27_bg_verify_revoke_from_authenticated_api",
-      "source": "tests/acceptance/test_enrichment.py:112",
+      "source": "tests/acceptance/test_enrichment.py:168",
       "status": "PASS"
     },
     {
       "test": "test_T32_sidecar_external_edit_requires_exact_explicit_revision",
-      "source": "tests/acceptance/test_enrichment.py:146",
+      "source": "tests/acceptance/test_enrichment.py:202",
       "status": "PASS"
     },
     {
@@ -403,18 +413,19 @@
   },
   "source_sha256": {
     "backend/app/__init__.py": "3df9329cf31cf999c8aa8f2bed9952c82d437e400c86f0bed05812dce1b64546",
-    "backend/app/adapters.py": "8139a3cca929979a7dc7911eccbc160af4c3e95aca479d1ce1ded99c7b0d3353",
-    "backend/app/api.py": "54af06150c85e8bd13872d87a61e567bd6670d6dd4c0c4259342969fcb535145",
+    "backend/app/adapters.py": "7f7221b52caca6b82e1b4f9ede778feab0d0af07025fbdac9836ceb379bee443",
+    "backend/app/api.py": "07a35719173414fe88b92e7b71960f0ae7899e69ae9565633b572eb259be639c",
     "backend/app/domain.py": "1953076ef530b6fade3279f3723305ba626ebbf8a3c7e1da0e4f53a6196829da",
-    "backend/app/emulated.py": "fd83d3814787ace0f8f353248d756f8ad638015ab6bd33d17b46aab0c5f5cc8e",
+    "backend/app/emulated.py": "c86cd8a851056cc5ea11314ceea0d86d05262e1f2a9cbfaa9341a0def8344357",
     "backend/app/maintenance.py": "a32f42123cde8420b509949a72155a5984542376d2555ba2a6e2c63fb4f256d7",
+    "backend/app/observability.py": "6729f9a0d8e9042be5389ca442139fe6070a4fdf531c03f11237a2fa811bc74e",
     "backend/app/ops.py": "1ff4bb8b8fbea443b86d6c7734af2fc69fc986db81ea37d92c17fad7461eb726",
     "backend/app/persistence.py": "246ea65aa43730d6e3630a4bbec04520b29bc1a2af2a4238a67628824d8256ab",
     "backend/app/settings.py": "253fe75290a111937c1ef987d2a610a2173de15b8cb17562364a344742fafbb0",
     "backend/app/storage.py": "eb681942536bb8b8b474d27c93f265e4d4eced70726127edc436da2923c6caff",
     "backend/app/subtitles.py": "c014444f62aae90c3de7ea872a1ee5963250c363b5bbde9db18567e27c4c0e85",
-    "backend/app/worker.py": "5f42fc74f64658a24d1f14e1c4656d5110e98e68a1ba52af1f8af09453c0696d",
-    "tests/acceptance/test_enrichment.py": "fa7681aa9915a77bc0371a46493b0fca571a70339e2de69c4e5f0d99dc537597",
+    "backend/app/worker.py": "e6f13c24dc099383bcab49263731a66a64e3ebd3702825b7cb2d2629d4d342d2",
+    "tests/acceptance/test_enrichment.py": "c7aece03c86fedda2935ffb8cc18752c5a740650dbceb588cfda83e823fafa28",
     "tests/acceptance/test_policies.py": "8f8eeb6d7c02a51a918d1c914d9e3d9b61e62083c347080e9cd57da7cbd1dc5e",
     "tests/acceptance/test_security.py": "5f89fa8df45ae8725f55e79a569b406e55645d5bfe1b119ff198654082c220d9",
     "tests/acceptance/test_workflow.py": "04f0de20cdc864c379a36a078ed24c904423e00c1c27ed500c43120d8600d962",
@@ -424,7 +435,7 @@
     "tests/integration/test_operations.py": "4ae59957767f23100fed1074cbaa18096893640d9f314002d1573261485048d7",
     "tests/integration/test_release_contracts.py": "60617ecf074228ab8b7254fc3f2d28309d7ffcdde9e5ccf7e66d268d1d364405",
     "frontend/src/api.ts": "d1fee58e2a9e53ea2c3498c2177a87856960d42c622a2c4a19b4b270ecf0661f",
-    "frontend/src/App.vue": "009bc29e7d3dd1ba82fb688914f968d562668805da519488ddc78257148aaa74",
+    "frontend/src/App.vue": "ece57afe6c6d5f81ec682d8d6d2129014080d9d172485ec8644777a1dab1e5bd",
     "frontend/src/main.ts": "a9a77d229d3df173585188d0cfcdeb479cf61b5a0028b67353b4f5998c9e3ad9",
     "frontend/src/style.css": "c8bda9ab9b7de83ae821cc525dfe502710a2718375d732c5b8d3cf998fc0162d",
     "frontend/src/types.ts": "23b639284cd5381483694b5052a03068ae47393450fda41e2f1290a2ff2cb02a"

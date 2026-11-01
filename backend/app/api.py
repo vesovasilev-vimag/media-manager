@@ -1,6 +1,6 @@
 import hashlib
 import secrets
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import Any, Literal
 from uuid import UUID
 
@@ -332,6 +332,14 @@ def create_app(config: Settings | None = None, database: p.Database | None = Non
             revision = conn.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
         health = db.rows(select(p.settings_table).where(p.settings_table.c.key == "worker_health"))
         value = health[0]["value"] if health else {"state": "UNKNOWN"}
+        age = (
+            max(0, (p.now() - datetime.fromisoformat(value["time"])).total_seconds())
+            if value.get("time")
+            else None
+        )
+        value = {**value, "heartbeat_age_seconds": age}
+        if age is not None and age > max(120, cfg.poll_seconds * 3):
+            value["state"] = "STALE"
         return {
             "database": revision == "0001",
             "schema": revision,

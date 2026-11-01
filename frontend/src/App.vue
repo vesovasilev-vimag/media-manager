@@ -1277,6 +1277,12 @@ onUnmounted(() => {
                   <dd>{{ health?.worker.state ?? "Неизвестно" }}</dd>
                   <dt>qBt</dt>
                   <dd>{{ health?.worker.qbt ?? "Непроверен" }}</dd>
+                  <dt>Jellyfin</dt>
+                  <dd>{{ health?.worker.jellyfin ?? "Непроверен" }}</dd>
+                  <dt>Worker heartbeat (секунди)</dt>
+                  <dd>
+                    {{ health?.worker.heartbeat_age_seconds ?? "Непроверен" }}
+                  </dd>
                   <dt>Последна грешка</dt>
                   <dd>{{ health?.worker.error_code ?? "Няма" }}</dd>
                 </dl>
