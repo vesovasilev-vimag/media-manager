@@ -1,6 +1,6 @@
 # ViMag Media Manager 1.0.0-rc.1 release evidence
 
-**Decision: BLOCKED — NOT RC1 PASSED.** The implementation and deterministic acceptance checks are delivered. Docker Hub publication is blocked by unavailable GitHub Actions registry secrets. Images, immutable deployment manifest, ViMag deployment and live pilot have not been produced or executed.
+**Decision: RC1 ARTIFACTS PUBLISHED — OPERATIONAL VALIDATION PENDING (NOT RC1 PASSED).** Source and automated suites have passed, two multi-architecture Docker Hub images are published with real immutable digests and a validated deployment artifact exists. ViMag deployment, live host safety gates and one-torrent pilot have **not** been executed. General production writes remain disabled by the Compose defaults.
 
 ## Source and validation identity
 
@@ -9,7 +9,11 @@
 - [Final CI](https://github.com/vesovasilev-vimag/media-manager/actions/runs/41324806382): PASS; backend, frontend and desktop/mobile browser jobs completed successfully.
 - [Final Security](https://github.com/vesovasilev-vimag/media-manager/actions/runs/41324806438): PASS; runtime Python/npm dependency audits, Bandit, Gitleaks and both container scans. Both actual Trivy reports have **0 HIGH/CRITICAL findings**. No vulnerability suppression is used; the narrow Gitleaks exception matches only generated source SHA-256 lines.
 - [Release attempt](https://github.com/vesovasilev-vimag/media-manager/actions/runs/41324806470): **BLOCKED on registry credentials** after all verification/security/browser jobs passed. `prepare` job `124903168817` observed empty `HUB_USER` and `HUB_TOKEN` on 2026-11-01 and failed its registry prerequisite. Publication/manifest jobs were skipped. No RC tag was created.
-- RC tag: **NOT CREATED**. Web/backend Docker Hub digests: **NONE — NOT PUBLISHED**. [Pending manifest](../deploy/release-manifest.pending.json) intentionally fails deployment validation. No invented digest or local-image ID is presented as a published image.
+- [Successful RC1 publication](https://github.com/vesovasilev-vimag/media-manager/actions/runs/41327366195): all verify/security, prepare, both publish jobs and manifest PASS, run source `3305709695a16d8ea49beb1da8a2a553a9340469`.
+- RC tag: [`v1.0.0-rc.1`](https://github.com/vesovasilev-vimag/media-manager/tree/v1.0.0-rc.1) points to `3305709695a16d8ea49beb1da8a2a553a9340469`.
+- Web: `vesovasilev/media-manager-web@sha256:6da8af69364252c6b988325ec7592837b6940eb29321b05155c579e94b235d20` (pushed, GitHub publish job `124910754472`).
+- Backend: `vesovasilev/media-manager-backend@sha256:410f93ed480ca4e9785a4837d0ad74a769c79fea722e32b3cf16088b00c52a37` (pushed, GitHub publish job `124910754490`).
+- [Validated `rc1-deployment` artifact](https://github.com/vesovasilev-vimag/media-manager/actions/runs/41327366195/artifacts/13092350630): upload/manifest job `124911405736` PASS; includes immutable release manifest, production Compose and runbooks. PostgreSQL pinned reference is preserved in the published manifest. The repo's `deploy/release-manifest.pending.json` is intentionally not deployable.
 
 ## Delivered implementation
 
@@ -38,7 +42,7 @@ The Starlette test client emits one upstream HTTPX deprecation warning. It does 
 
 | Gate/step | Result and exact boundary |
 |---|---|
-| Docker Hub publication and digest/SBOM/provenance artifact | BLOCKED: registry secrets unavailable to Actions; no publish job ran |
+| Docker Hub publication and digest/SBOM/provenance artifact | **PASS (2026-11-01):** tag, two pushed multi-architecture images, actual digests and validated release artifact. GitHub Actions run `41327366195` |
 | G-01 qBt | Historical authenticated read-only 5.2.0/API 2.15.1 discovery documented in approved design. Mocked 204-cookie/API-key/async commands tested. No live write fixture executed in this implementation session |
 | G-02 NAS | Synthetic same-share hardlink/content/failure tests PASS. Historical CIFS scratch proof is documented. Actual deployed Worker UID/ACL/bind and qBt store mount remain unverified |
 | G-03 Jellyfin | Adapter and exact async recognition contracts PASS. Actual Movies/Shows roots, editions, NFO saver and non-overlapping indexing remain unverified |
@@ -46,14 +50,14 @@ The Starlette test client emits one upstream HTTPX deprecation warning. It does 
 | G-05 Media validation | Synthetic BG/quality/identity/subtitle policies PASS. Representative anonymized sample calibration and live provider results pending; automated quality activation remains gated |
 | G-06 Inventory | Synthetic read-only inventory and fresh content/dependency guards PASS. Full live five-category catalog/dependency mapping pending |
 | G-DB-01 | Disposable PostgreSQL migration/concurrency/backup/restore PASS. ViMag ext4/XFS PGDATA, permissions and host restore proof pending |
-| Deployment / read-only integration | NOT RUN: publication prerequisite not satisfied. Production host was not accessed or changed |
+| Deployment / read-only integration | **NOT RUN:** image publication is complete, but ViMag host access, private TLS/middleware, secrets, token rotation, production PostgreSQL restore, host/NAS permissions and preflight evidence remain unverified. No production host was accessed or changed |
 | Exactly one new harmless torrent | NOT RUN: no torrent added. Original color/sine multi-file generator is supplied in `tests/fixtures/generate_fixture.py`; no real media or fabricated provider ID used |
 | Write state / legacy | Production Compose defaults `WRITE_ENABLED=false`, automatic intake false. No deployed ViMag instance created by this work. No legacy torrent was modified by this work; current live count was not re-observed |
 
 ## Unavoidable external action and resume
 
-Provide repository Actions secrets `DOCKERHUB_USERNAME=vesovasilev` and `DOCKERHUB_TOKEN` with push permission only for the two authorized images. Keep values outside chat/Git. The actual failing `prepare` job is rerunnable after secrets become available; its preceding CI/security results remain inspectable. The workflow verifies the exact candidate, refuses existing tag/image overwrite, builds both architectures and records real digests/SBOM/provenance.
+**Registry blocker resolved:** repository Actions secrets became accessible and publication run `41327366195` passed. Do not rerun this immutable RC tag/image publication pipeline merely to repeat completed work: the workflow deliberately refuses to overwrite existing RC images. Do not copy registry secret values into documentation or logs.
 
-After publication, continue autonomously with artifact validation, actual runtime access/preflight, rotated Jellyfin token, private backups/restore and mount/network proofs. Runtime credentials and host access were deliberately not tested before publication; they are **unverified**, not asserted absent. Deploy read-only, establish the fresh actual legacy baseline, then execute exactly one new isolated harmless torrent only under the scoped operational authorization. General production write activation remains a separate gated cutover.
+Next: download and verify the published deployment package, establish actual runtime access/preflight, rotate the Jellyfin token, perform private backups/restore and mount/network proofs. Runtime credentials and host access were deliberately not tested before publication; they are **unverified**, not asserted absent. Deploy read-only, establish the fresh actual legacy baseline, then execute exactly one new isolated harmless torrent only under the scoped operational authorization. General production write activation remains a separate gated cutover.
 
 Local Git credentials for `VesoVasilev` returned push 403. This was resolved through the connected repository-owner GitHub API, verifying identical Git tree SHAs and retaining recovery branches; it is not a remaining blocker. Source is committed and published to `codex/rc1`. No intermediate owner test, demo or approval was requested.
