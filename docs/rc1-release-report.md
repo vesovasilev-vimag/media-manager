@@ -1,59 +1,58 @@
-# ViMag Media Manager RC1 — release evidence report
+# ViMag Media Manager 1.0.0-rc.1 release evidence
 
-**State:** NOT BUILT — template only. **Do not change to PASS without executed evidence.**
+**Decision: BLOCKED — NOT RC1 PASSED.** The implementation and deterministic acceptance checks are delivered. Docker Hub publication is blocked by unavailable GitHub Actions registry secrets. Images, immutable deployment manifest, ViMag deployment and live pilot have not been produced or executed.
 
-## Version identity
+## Source and validation identity
 
-- RC tag: `v1.0.0-rc.1` (target; not created)
-- Source commit SHA: `PENDING`
-- CI URL / run ID: `PENDING`
-- Security scan/SBOM/build provenance: `PENDING`
-- Docker Hub web image digest: `PENDING — NOT PUBLISHED`
-- Docker Hub backend image digest: `PENDING — NOT PUBLISHED`
-- Digest-pinned release manifest: `PENDING`
+- Validated application commit: [`2749632d58bd7baae1e65b2b772a47e05007e34f`](https://github.com/vesovasilev-vimag/media-manager/commit/2749632d58bd7baae1e65b2b772a47e05007e34f), branch `codex/rc1`.
+- Exact source tree: `c4ee3e2ba1072ad6aee98badcc0cc5f64091c870`. Later documentation-only commits preserve the tested application source.
+- [Final CI](https://github.com/vesovasilev-vimag/media-manager/actions/runs/41323120638): PASS; backend, frontend and desktop/mobile browser jobs completed successfully.
+- [Final Security](https://github.com/vesovasilev-vimag/media-manager/actions/runs/41323120651): PASS; runtime Python/npm dependency audits, Bandit, Gitleaks and both container scans. Both actual Trivy reports have **0 HIGH/CRITICAL findings**. No vulnerability suppression is used; the narrow Gitleaks exception matches only generated source SHA-256 lines.
+- [Release attempt](https://github.com/vesovasilev-vimag/media-manager/actions/runs/41323120619): **BLOCKED on registry credentials** after all verification/security/browser jobs passed. `prepare` job `124898074207` observed empty `HUB_USER` and `HUB_TOKEN` at 2026-11-01 15:51:57 UTC and failed its registry prerequisite. Publication/manifest jobs were skipped. No RC tag was created.
+- RC tag: **NOT CREATED**. Web/backend Docker Hub digests: **NONE — NOT PUBLISHED**. [Pending manifest](../deploy/release-manifest.pending.json) intentionally fails deployment validation. No invented digest or local-image ID is presented as a published image.
 
-## Feature completeness
+## Delivered implementation
 
-- Seven production UI screens bound to real API: **NOT VERIFIED**
-- PostgreSQL queue + migrations + crash recovery: **NOT VERIFIED**
-- qBittorrent/Jellyfin/NAS + media policies: **NOT VERIFIED**
-- Quarantine/restore + no permanent library deletion: **NOT VERIFIED**
-- Backup/restore, security and operator runbooks: **NOT VERIFIED**
+All M1–M6 workstreams have source, configuration and deterministic verification: four-container Vue/Nginx/FastAPI/Worker/PostgreSQL architecture; seven persisted API screens; one-admin Argon2id sessions/CSRF/audit; immutable torrent baseline and generation guards; durable SKIP LOCKED queue, resource epochs, heartbeat fencing, intent journal and reconciliation; ffprobe/TMDb/manual identity, editions and BG evidence; explainable actual media factors and explicit material-quality review; qBt-aware simple moves and torrent-store/hardlink parent/child imports; owned atomic NFO/artwork, subtitle provider/download/timing/review/attachment; exact Jellyfin recognition gates; inventory, approved normalization and reversible dependency-blocked quarantine/restore; staging-only cleanup proof; structured private diagnostics, readiness, backups/restore/migrations and operator/release tooling.
 
-## Automated evidence
+Unknown source provenance, ambiguous identity, uncalibrated quality and unverified subtitle timing remain visible review states. G-05 is not bypassed with an invented score. Production adapters are implemented; external services in automated tests are emulated. No production integration is claimed from those results.
 
-Use [RC1 traceability](rc1-traceability.md); do not copy optimistic statuses.
+## Executed automated evidence
 
-| Suite | Result | Command/CI URL | Evidence |
-|---|---|---|---|
-| T-01..T-43 | NOT_RUN | — | — |
-| IT-01..IT-17 | NOT_RUN | — | — |
-| Backend/API/DB | NOT_RUN | — | — |
-| Frontend | NOT_RUN | — | — |
-| Security/containers | NOT_RUN | — | — |
-| Synthetic failure/recovery | NOT_RUN | — | — |
-
-## Deployment and one-torrent pilot
-
-| Step | Result | Exact evidence |
+| Check | Result | Evidence |
 |---|---|---|
-| Docker Hub image publication | NOT_RUN | — |
-| ViMag backup and preflight | NOT_RUN | — |
-| Compose pull & start (read-only) | NOT_RUN | — |
-| qBt legacy baseline before/after | NOT_RUN | — |
-| NAS Worker mount/permissions | NOT_RUN | — |
-| Real Jellyfin/QBt integration | NOT_RUN | — |
-| One newly created harmless test torrent | NOT_RUN | — |
-| Completion, move, seeding/recheck, Jellyfin recognition | NOT_RUN | — |
-| Final `WRITE_ENABLED` state | NOT_KNOWN | — |
+| T-01…T-43 | 43/43 automated PASS | [Exact test references](rc1-traceability.md), [sanitized JUnit-derived evidence and source hashes](rc1-automated-evidence.json) |
+| IT-01…IT-17 | 17/17 automated PASS | Same traceability; live operational gates below are separate |
+| Full Linux backend/API/storage suite | 70 PASS, 0 failed, 0 skipped | Real disposable PostgreSQL and filesystem; generated ffprobe media; emulated providers; CI `backend-evidence` |
+| Backend formatting/lint/types | PASS | Ruff format/check and mypy, CI backend job |
+| Frontend lint/types/unit/build | PASS, 4 unit tests | CI frontend job and `frontend-evidence` |
+| Desktop/mobile browser | PASS on final application source | Enrollment/login/logout, seven API-backed screens, no JS errors or viewport overflow; CI browser evidence |
+| Migration and restore | PASS in disposable Linux environment | Down/up, serialized migration, custom pg_dump, empty isolated restore, journal/audit recovery and schema compatibility in `tests/integration/test_operations.py` |
+| Fault, concurrency and security | PASS | Duplicate/replay, asynchronous move/recheck, stale epochs/heartbeat, NAS failure, collisions/symlinks, legacy guards, auth/CSRF, no-delete and dependency tests |
+| Runtime/image security | PASS | Final Security artifacts: dependency audit/SAST and both Trivy JSON reports |
 
-## Open gates / blocking dependencies
+The Starlette test client emits one upstream HTTPX deprecation warning. It does not skip tests or affect production HTTP clients.
 
-- G-01: read-only API proven; write fixture not yet validated.
-- G-02: hardlinks in host and Docker scratch pass; production Worker UID/mount validation outstanding.
-- G-03, G-04, G-05, G-06, G-DB-01: no final production sign-off yet.
-- Potential external access: Docker Hub push token, SSH/deploy access, fresh Jellyfin token, provider credentials.
+## Deployment and operational gates
 
-## Final decision
+| Gate/step | Result and exact boundary |
+|---|---|
+| Docker Hub publication and digest/SBOM/provenance artifact | BLOCKED: registry secrets unavailable to Actions; no publish job ran |
+| G-01 qBt | Historical authenticated read-only 5.2.0/API 2.15.1 discovery documented in approved design. Mocked 204-cookie/API-key/async commands tested. No live write fixture executed in this implementation session |
+| G-02 NAS | Synthetic same-share hardlink/content/failure tests PASS. Historical CIFS scratch proof is documented. Actual deployed Worker UID/ACL/bind and qBt store mount remain unverified |
+| G-03 Jellyfin | Adapter and exact async recognition contracts PASS. Actual Movies/Shows roots, editions, NFO saver and non-overlapping indexing remain unverified |
+| G-04 Recovery | Synthetic crashes, lease fencing, journal replay, dependency-safe restore PASS. Host-specific rehearsal pending |
+| G-05 Media validation | Synthetic BG/quality/identity/subtitle policies PASS. Representative anonymized sample calibration and live provider results pending; automated quality activation remains gated |
+| G-06 Inventory | Synthetic read-only inventory and fresh content/dependency guards PASS. Full live five-category catalog/dependency mapping pending |
+| G-DB-01 | Disposable PostgreSQL migration/concurrency/backup/restore PASS. ViMag ext4/XFS PGDATA, permissions and host restore proof pending |
+| Deployment / read-only integration | NOT RUN: publication prerequisite not satisfied. Production host was not accessed or changed |
+| Exactly one new harmless torrent | NOT RUN: no torrent added. Original color/sine multi-file generator is supplied in `tests/fixtures/generate_fixture.py`; no real media or fabricated provider ID used |
+| Write state / legacy | Production Compose defaults `WRITE_ENABLED=false`, automatic intake false. No deployed ViMag instance created by this work. No legacy torrent was modified by this work; current live count was not re-observed |
 
-**NOT RC1 PASS** until the code, images, required automated evidence and authorized integration/pilot evidence exist. Codex should replace this template with real run records at delivery. Release and production-wide write activation are separate authorizations.
+## Unavoidable external action and resume
+
+Provide repository Actions secrets `DOCKERHUB_USERNAME=vesovasilev` and `DOCKERHUB_TOKEN` with push permission only for the two authorized images. Keep values outside chat/Git. The actual failing `prepare` job is rerunnable after secrets become available; its preceding CI/security results remain inspectable. The workflow verifies the exact candidate, refuses existing tag/image overwrite, builds both architectures and records real digests/SBOM/provenance.
+
+After publication, continue autonomously with artifact validation, actual runtime access/preflight, rotated Jellyfin token, private backups/restore and mount/network proofs. Runtime credentials and host access were deliberately not tested before publication; they are **unverified**, not asserted absent. Deploy read-only, establish the fresh actual legacy baseline, then execute exactly one new isolated harmless torrent only under the scoped operational authorization. General production write activation remains a separate gated cutover.
+
+Local Git credentials for `VesoVasilev` returned push 403. This was resolved through the connected repository-owner GitHub API, verifying identical Git tree SHAs and retaining recovery branches; it is not a remaining blocker. Source is committed and published to `codex/rc1`. No intermediate owner test, demo or approval was requested.

@@ -98,11 +98,13 @@ State vocabulary: `NOT_RUN` → `PASS` / `FAIL` / `BLOCKED`; `PASS` requires a d
 - [x] Backend formatting/lint/types/tests and generated OpenAPI pass.
 - [x] PostgreSQL migrations and backup/restore proven in disposable environment.
 - [x] Auth/CSRF/secrets/path guards, safe cleanup and anti-legacy mutation regression passes.
-- [ ] Container builds, reproducibility, image security scans and secret scans pass.
+- [x] Both container builds, locked dependency checks, image security scans and secret scans pass: [Security run 41323120651](https://github.com/vesovasilev-vimag/media-manager/actions/runs/41323120651). Published digest reproduction remains blocked with publication.
 - [ ] Two Docker Hub images published with actual immutable digests and release manifest.
 - [ ] On ViMag, backup/safety/permissions and read-only integration checked after deployment.
 - [ ] Exactly one **new, authorized, harmless test torrent** tested after deployment; seeding and Jellyfin evidence attached.
-- [ ] `WRITE_ENABLED` remains false outside explicit isolated test operation until controlled production cutover.
-- [ ] `docs/rc1-release-report.md` contains truthful status, CI links, image digests, deploy status and remaining blockers.
+- [x] Production defaults keep writes and automatic intake false; no live write operation executed.
+- [x] `docs/rc1-release-report.md` records actual CI, absent published digests, unexecuted deployment and exact credential blocker.
+
+Final application validation: [CI run 41323120638](https://github.com/vesovasilev-vimag/media-manager/actions/runs/41323120638), application commit `2749632d58bd7baae1e65b2b772a47e05007e34f`: 70 backend tests, 4 frontend tests and desktop/mobile browser PASS. Release run [41323120619](https://github.com/vesovasilev-vimag/media-manager/actions/runs/41323120619) repeated all checks successfully, then stopped at empty registry secrets. No operational gate above is promoted to live PASS.
 
 **No intermediate owner sign-off is requested.** This file must be updated by Codex during the uninterrupted implementation, not filled with optimistic checkboxes.
