@@ -255,12 +255,17 @@ class Jellyfin(Remote):
                 if len(sources) != 1:
                     continue
                 streams = sources[0]["MediaStreams"]
-                if expected.get("bg") == "BG_VERIFIED" and not any(
+                if expected.get("bg") in {"BG_VERIFIED", "BG_TAGGED", "BG_DETECTED"} and not any(
                     s.get("Type") == "Audio" and s.get("Language") in {"bul", "bg"} for s in streams
                 ):
                     continue
                 if expected.get("subtitle") in {"Matched", "Synchronized"} and not any(
                     s.get("Type") == "Subtitle" and s.get("Language") in {"bul", "bg"}
+                    for s in streams
+                ):
+                    continue
+                if expected.get("subtitle_path") and not any(
+                    s.get("Type") == "Subtitle" and s.get("Path") == expected["subtitle_path"]
                     for s in streams
                 ):
                     continue
@@ -315,12 +320,17 @@ class Jellyfin(Remote):
             if not exact_sources or not exact_sources[0].get("MediaStreams"):
                 continue
             streams = exact_sources[0]["MediaStreams"]
-            if expected.get("bg") == "BG_VERIFIED" and not any(
+            if expected.get("bg") in {"BG_VERIFIED", "BG_TAGGED", "BG_DETECTED"} and not any(
                 s.get("Type") == "Audio" and s.get("Language") in {"bul", "bg"} for s in streams
             ):
                 continue
             if expected.get("subtitle") in {"Matched", "Synchronized"} and not any(
                 s.get("Type") == "Subtitle" and s.get("Language") in {"bul", "bg"} for s in streams
+            ):
+                continue
+            if expected.get("subtitle_path") and not any(
+                s.get("Type") == "Subtitle" and s.get("Path") == expected["subtitle_path"]
+                for s in streams
             ):
                 continue
             matches.append({"item_id": item["Id"], "path_verified": True, "streams_verified": True})
@@ -357,6 +367,27 @@ class TMDb(Remote):
             }
             for c in candidates[:10]
         ]
+
+    def details(self, provider_id: str, media_type: str) -> dict[str, Any]:
+        if not provider_id.isdecimal():
+            raise GateError("INVALID_PROVIDER_ID")
+        route = "tv" if media_type == "show" else "movie"
+        data = self.request(
+            "GET", route + "/" + provider_id, params={"append_to_response": "external_ids"}
+        ).json()
+        date = data.get("release_date") or data.get("first_air_date") or ""
+        collection = data.get("belongs_to_collection") or {}
+        return {
+            "provider_id": str(data["id"]),
+            "title": data.get("original_title", data.get("original_name")),
+            "year": int(date[:4]) if date[:4].isdecimal() else None,
+            "imdb_id": data.get("imdb_id") or data.get("external_ids", {}).get("imdb_id"),
+            "collection_id": str(collection["id"]) if collection.get("id") else None,
+            "collection_name": collection.get("name"),
+            "provenance": "TMDb-detail",
+            "poster_path": data.get("poster_path"),
+            "backdrop_path": data.get("backdrop_path"),
+        }
 
     def artwork(self, image_path: str) -> bytes:
         if not re.fullmatch(r"/[a-zA-Z0-9]+\.(jpg|png)", image_path):

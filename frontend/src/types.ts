@@ -8,6 +8,7 @@ export interface Identity {
   episodes?: number[];
   artist?: string;
   confirmed?: boolean;
+  collection_override?: string;
 }
 export interface ItemData {
   identity?: Identity;
@@ -16,7 +17,10 @@ export interface ItemData {
   bg?: string;
   subtitle?: string;
   fingerprint?: string;
-  probe?: { streams: Record<string, unknown>[] };
+  probe?: {
+    streams: Record<string, unknown>[];
+    format?: { duration?: string };
+  };
   candidates?: Record<string, unknown>[];
   published?: boolean;
   integrity?: boolean;
@@ -82,6 +86,8 @@ export interface Audit {
 export interface Evidence {
   id: string;
   item_id?: string;
+  asset_id?: string;
+  asset_revision?: number;
   data: Record<string, unknown>;
   context?: ItemData;
 }

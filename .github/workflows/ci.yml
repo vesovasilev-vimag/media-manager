@@ -1,7 +1,7 @@
-name: RC1 CI
+name: ViMag CI
 on:
   push:
-    branches: [main, codex/rc1]
+    branches: [main, codex/rc1, codex/v1.1-library-maintenance]
   pull_request:
   workflow_call:
 permissions: {contents: read}
@@ -32,6 +32,11 @@ jobs:
           cp docs/rc1-automated-evidence.json .test-artifacts/
       - name: Backend production image
         run: docker build -q -t vimag-backend-ci backend
+      - name: Real Jellyfin collection, editions and subtitle discovery
+        run: |
+          docker run --rm -v vimag-v11-jellyfin-fixtures:/fixtures vimag-tests python tests/fixtures/jellyfin_contract.py prepare
+          docker compose -f tests/compose.jellyfin.yaml up -d --wait
+          docker run --rm --network vimag-v11-compat_compat -v "$PWD/.test-artifacts:/results" vimag-tests python tests/fixtures/jellyfin_contract.py verify
       - name: Production database least privilege bootstrap
         run: |
           docker compose -f tests/compose.roles.yaml up -d --wait
@@ -45,6 +50,8 @@ jobs:
         run: docker compose -f deploy/compose.dev.yaml down -v
       - if: always()
         run: docker compose -f tests/compose.roles.yaml down -v
+      - if: always()
+        run: docker compose -f tests/compose.jellyfin.yaml down -v
   frontend:
     runs-on: ubuntu-24.04
     timeout-minutes: 15

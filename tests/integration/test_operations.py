@@ -90,7 +90,7 @@ def test_migration_downgrade_upgrade_disposable_only(db: p.Database) -> None:
     with db.transaction() as conn:
         assert (
             conn.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
-            == "0001"
+            == "0002"
         )
 
 

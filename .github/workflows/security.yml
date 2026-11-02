@@ -1,7 +1,7 @@
-name: RC1 Security
+name: ViMag Security
 on:
   push:
-    branches: [main, codex/rc1]
+    branches: [main, codex/rc1, codex/v1.1-library-maintenance]
   pull_request:
   workflow_call:
 permissions: {contents: read}

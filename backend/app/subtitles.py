@@ -15,7 +15,7 @@ class OpenSubtitles(Remote):
             "https://api.opensubtitles.com/api/v1/",
             {
                 "Api-Key": config.secret(config.subtitle_api_key_file).get_secret_value(),
-                "User-Agent": "ViMagMediaManager v1.0.0-rc.1",
+                "User-Agent": "ViMagMediaManager v1.1.0-dev",
             },
         )
 
@@ -114,6 +114,12 @@ def evaluate(
         reasons.append("FPS_DRIFT")
     if candidate.get("offset", 0) or candidate.get("drift", 0):
         reasons.append("TIMING_DRIFT")
+    if candidate.get("duration") and abs(candidate["duration"] - media["duration"]) > 1:
+        reasons.append("DURATION_MISMATCH")
+    if candidate.get("complete") is False:
+        reasons.append("INCOMPLETE_SUBTITLE")
+    if candidate.get("language") and candidate["language"] not in {"bg", "bul"}:
+        reasons.append("LANGUAGE_MISMATCH")
     state = "Mismatch" if reasons else "NeedsReview"
     if not reasons and verification and verification.get("actor") and verification.get("time"):
         if (

@@ -24,12 +24,18 @@ def worker_path(cfg: Any, qpath: str) -> Path:
 
 def dependencies(worker: Any, asset: dict[str, Any]) -> list[dict[str, str]]:
     result = []
-    source = contained(worker.cfg.nas_root, "Library/" + asset["relative_path"], existing=True)
+    source = contained(worker.cfg.nas_root, "Library/" + asset["relative_path"])
+    size = source.stat().st_size if source.is_file() else asset.get("file_size_bytes")
     for torrent in worker.qbt.all():
         for file in torrent.files:
-            if file["size"] != source.stat().st_size:
-                continue
             qpath = torrent.save_path.rstrip("/") + "/" + file["name"]
+            if qpath == "/library/" + asset["relative_path"]:
+                result.append(
+                    {"torrent": digest(torrent.info_hash), "reason": "DIRECT_PAYLOAD_MAPPING"}
+                )
+                continue
+            if size is not None and file["size"] != size:
+                continue
             try:
                 candidate = worker_path(worker.cfg, qpath)
                 if sha256(candidate) == asset["fingerprint"]:
@@ -120,11 +126,21 @@ def execute(worker: Any, task: dict[str, Any]) -> bool:
                 )
                 .on_conflict_do_nothing(index_elements=["id"])
             )
+            conn.execute(
+                update(p.assets)
+                .where(p.assets.c.id == asset["id"])
+                .values(workflow_state="QUARANTINED", revision=p.assets.c.revision + 1)
+            )
         elif d["action"] == "RESTORE":
             conn.execute(
                 update(p.quarantine)
                 .where(p.quarantine.c.id == d["manifest_id"])
                 .values(state="RESTORED")
+            )
+            conn.execute(
+                update(p.assets)
+                .where(p.assets.c.id == asset["id"])
+                .values(workflow_state="ACTIVE", revision=p.assets.c.revision + 1)
             )
         elif d["action"] == "NORMALIZE":
             conn.execute(

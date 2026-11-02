@@ -737,3 +737,26 @@ ul {
     padding: 16px;
   }
 }
+
+.app-shell.collapsed {
+  grid-template-columns: 72px minmax(0, 1fr);
+}
+.app-shell.collapsed .sidebar {
+  width: 72px;
+  padding-inline: 8px;
+}
+.app-shell.collapsed .sidebar .brand > span:last-child,
+.app-shell.collapsed .sidebar > .eyebrow,
+.app-shell.collapsed .sidebar nav button span,
+.app-shell.collapsed .side-bottom {
+  display: none;
+}
+.app-shell.collapsed .sidebar nav button {
+  justify-content: center;
+  padding-inline: 8px;
+}
+@media (max-width: 760px) {
+  .app-shell.collapsed {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

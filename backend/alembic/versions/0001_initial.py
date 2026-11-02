@@ -1,7 +1,7 @@
 """Initial PostgreSQL schema. Minimum and maximum application schema: 0001."""
 
 from alembic import op
-from app.persistence import metadata
+from app.rc1_schema import metadata
 
 revision = "0001"
 down_revision = None

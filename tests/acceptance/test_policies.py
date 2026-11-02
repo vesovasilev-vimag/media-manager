@@ -81,7 +81,7 @@ def test_T07_T29_competing_provider_ids_require_review() -> None:
     assert match_identity(candidates, "1", "movie", 2026) == candidates[0]
 
 
-def test_T25_tag_is_not_verified(db: Any) -> None:
+def test_T25_v11_detected_tag_accepted_with_provenance(db: Any) -> None:
     t = torrent(db)
     path = db.config.staging_root / t.files[0]["name"]
     analysis = synthetic_probe(path)
@@ -95,7 +95,8 @@ def test_T25_tag_is_not_verified(db: Any) -> None:
         state,
         ".mkv",
     )
-    assert " BG" not in name
+    # BG-01 supersedes v1.0 manual confirmation; provenance remains BG_TAGGED.
+    assert " BG" in name
 
 
 def test_T26_stream_bound_evidence_survives_byte_identical_copy(
