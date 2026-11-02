@@ -3,6 +3,7 @@
 import json
 import re
 import subprocess
+import time
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
@@ -30,6 +31,7 @@ class Remote:
         ):
             raise GateError("INVALID_SERVICE_URL")
         self.name = name
+        self.rate_limited_until = 0.0
         self.http = httpx.Client(
             base_url=base.rstrip("/") + "/",
             headers=headers,
@@ -40,13 +42,20 @@ class Remote:
         )
 
     def request(self, method: str, path: str, **kwargs: Any) -> httpx.Response:
+        if time.monotonic() < self.rate_limited_until:
+            raise GateError(self.name + "_RETRY_LATER", "FailedRecoverable")
         try:
             response = self.http.request(method, path.lstrip("/"), **kwargs)
         except httpx.HTTPError:
             raise GateError(self.name + "_UNAVAILABLE", "BlockedExternalDependency") from None
         if response.status_code in {401, 403}:
             raise GateError(self.name + "_AUTH_REQUIRED", "BlockedExternalDependency")
-        if response.status_code == 429 or response.status_code >= 500:
+        if response.status_code == 429:
+            retry_after = response.headers.get("Retry-After", "60")
+            delay = min(3600, max(1, int(retry_after))) if retry_after.isdecimal() else 60
+            self.rate_limited_until = time.monotonic() + delay
+            raise GateError(self.name + "_RETRY_LATER", "FailedRecoverable")
+        if response.status_code >= 500:
             raise GateError(self.name + "_RETRY_LATER", "FailedRecoverable")
         if not 200 <= response.status_code < 300:
             raise GateError(self.name + "_REQUEST_REJECTED", "NeedsReview")
@@ -255,12 +264,17 @@ class Jellyfin(Remote):
                 if len(sources) != 1:
                     continue
                 streams = sources[0]["MediaStreams"]
-                if expected.get("bg") == "BG_VERIFIED" and not any(
+                if expected.get("bg") in {"BG_VERIFIED", "BG_TAGGED", "BG_DETECTED"} and not any(
                     s.get("Type") == "Audio" and s.get("Language") in {"bul", "bg"} for s in streams
                 ):
                     continue
                 if expected.get("subtitle") in {"Matched", "Synchronized"} and not any(
                     s.get("Type") == "Subtitle" and s.get("Language") in {"bul", "bg"}
+                    for s in streams
+                ):
+                    continue
+                if expected.get("subtitle_path") and not any(
+                    s.get("Type") == "Subtitle" and s.get("Path") == expected["subtitle_path"]
                     for s in streams
                 ):
                     continue
@@ -315,12 +329,17 @@ class Jellyfin(Remote):
             if not exact_sources or not exact_sources[0].get("MediaStreams"):
                 continue
             streams = exact_sources[0]["MediaStreams"]
-            if expected.get("bg") == "BG_VERIFIED" and not any(
+            if expected.get("bg") in {"BG_VERIFIED", "BG_TAGGED", "BG_DETECTED"} and not any(
                 s.get("Type") == "Audio" and s.get("Language") in {"bul", "bg"} for s in streams
             ):
                 continue
             if expected.get("subtitle") in {"Matched", "Synchronized"} and not any(
                 s.get("Type") == "Subtitle" and s.get("Language") in {"bul", "bg"} for s in streams
+            ):
+                continue
+            if expected.get("subtitle_path") and not any(
+                s.get("Type") == "Subtitle" and s.get("Path") == expected["subtitle_path"]
+                for s in streams
             ):
                 continue
             matches.append({"item_id": item["Id"], "path_verified": True, "streams_verified": True})
@@ -357,6 +376,27 @@ class TMDb(Remote):
             }
             for c in candidates[:10]
         ]
+
+    def details(self, provider_id: str, media_type: str) -> dict[str, Any]:
+        if not provider_id.isdecimal():
+            raise GateError("INVALID_PROVIDER_ID")
+        route = "tv" if media_type == "show" else "movie"
+        data = self.request(
+            "GET", route + "/" + provider_id, params={"append_to_response": "external_ids"}
+        ).json()
+        date = data.get("release_date") or data.get("first_air_date") or ""
+        collection = data.get("belongs_to_collection") or {}
+        return {
+            "provider_id": str(data["id"]),
+            "title": data.get("original_title", data.get("original_name")),
+            "year": int(date[:4]) if date[:4].isdecimal() else None,
+            "imdb_id": data.get("imdb_id") or data.get("external_ids", {}).get("imdb_id"),
+            "collection_id": str(collection["id"]) if collection.get("id") else None,
+            "collection_name": collection.get("name"),
+            "provenance": "TMDb-detail",
+            "poster_path": data.get("poster_path"),
+            "backdrop_path": data.get("backdrop_path"),
+        }
 
     def artwork(self, image_path: str) -> bytes:
         if not re.fullmatch(r"/[a-zA-Z0-9]+\.(jpg|png)", image_path):

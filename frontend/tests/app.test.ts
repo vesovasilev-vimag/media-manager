@@ -35,6 +35,8 @@ describe("session and seven real API screens", () => {
           recent: [],
         });
       if (url.includes("/settings")) return response({ sections: [] });
+      if (url.includes("/library/analytics"))
+        return response({ categories: [] });
       if (url.includes("/health/ready"))
         return response({ database: true, write_enabled: false, worker: {} });
       return response({ items: [] });

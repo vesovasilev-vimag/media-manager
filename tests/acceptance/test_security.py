@@ -61,7 +61,7 @@ def test_T39_machine_hook_has_no_admin_privileges(db: p.Database) -> None:
     )
 
 
-def test_T42_no_permanent_delete_endpoint(db: p.Database) -> None:
+def test_T42_v11_no_implicit_delete_or_quarantine_purge(db: p.Database) -> None:
     client = login(db)
     for path in [
         "/library/delete",

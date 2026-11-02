@@ -9,6 +9,24 @@ from app.domain import GateError
 from app.settings import Settings
 
 
+def test_provider_rate_limit_honours_cooldown_without_repeated_requests() -> None:
+    from app.adapters import Remote
+
+    calls = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request)
+        return httpx.Response(429, headers={"Retry-After": "120"})
+
+    provider = Remote(
+        "SYNTHETIC", "https://provider.invalid", transport=httpx.MockTransport(handler)
+    )
+    for _ in range(2):
+        with pytest.raises(GateError, match="RETRY_LATER"):
+            provider.request("GET", "details")
+    assert len(calls) == 1
+
+
 def test_IT02_fixture_add_exact_manual_local_category(tmp_path: Path) -> None:
     calls = []
     key = tmp_path / "key"

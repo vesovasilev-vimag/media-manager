@@ -1,6 +1,6 @@
 [project]
 name = "vimag-media-manager"
-version = "1.0.0rc1"
+version = "1.1.0dev0"
 requires-python = ">=3.13,<3.14"
 dependencies = [
   "fastapi==0.162.0", "starlette==1.10.0", "uvicorn==0.38.0", "sqlalchemy==2.0.44",

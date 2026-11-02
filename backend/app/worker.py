@@ -15,7 +15,6 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from app import persistence as p
 from app.adapters import Jellyfin, QBittorrent, TMDb, probe
 from app.domain import (
-    CATEGORIES,
     TERMINAL,
     GateError,
     Identity,
@@ -38,7 +37,6 @@ from app.storage import (
     hardlink,
     hardlink_scratch,
     mount_health,
-    read_nfo,
     sha256,
 )
 from app.subtitles import OpenSubtitles
@@ -147,6 +145,8 @@ class Worker:
             proof.get(g) for g in ["G-01", "G-02", "G-03", "G-04", "G-05", "G-DB-01"]
         ):
             raise GateError("PRODUCTION_CUTOVER_UNAUTHORIZED", "BlockedExternalDependency")
+        if torrent_id is None and proof.get("G-06") is not True:
+            raise GateError("MAINTENANCE_INVENTORY_UNVERIFIED", "BlockedExternalDependency")
 
     def fence(
         self, task: dict[str, Any], resources: list[str], torrent_id: str | None = None
@@ -157,7 +157,7 @@ class Worker:
         self.db.fence(task, resources)
         if task.get("job_id"):
             job = self.db.one(select(p.jobs).where(p.jobs.c.id == task["job_id"]))
-            if job["paused"]:
+            if job["paused"] and not task.get("finish_current_file"):
                 raise GateError("ORCHESTRATION_PAUSED", "Paused")
         if torrent_id:
             registered = self.db.one(select(p.torrents).where(p.torrents.c.id == torrent_id))
@@ -633,6 +633,13 @@ class Worker:
                         identity_key=entry["identity_key"],
                         edition=entry["identity"]["edition"],
                         fingerprint=entry["fingerprint"],
+                        **__import__("app.catalogue", fromlist=["normalized"]).normalized(
+                            entry["destination"],
+                            {
+                                "identity": entry["identity"],
+                                "probe": child["data"].get("probe", {}),
+                            },
+                        ),
                         data={
                             "identity": entry["identity"],
                             "bg": entry["bg"],
@@ -1003,86 +1010,10 @@ class Worker:
         return state in TERMINAL
 
     def inventory(self, task: dict[str, Any]) -> None:
-        self.db.reserve(task, ["library-scan"])
-        self.nas_health()
-        current = self.qbt.all()  # Failure aborts scan; no fabricated empty dependency map.
-        library = self.cfg.nas_root / "Library"
-        for category in CATEGORIES.values():
-            root = library / category
-            if not root.is_dir():
-                continue
-            for path in root.rglob("*"):
-                if path.suffix.lower() not in VIDEO or path.is_symlink() or not path.is_file():
-                    continue
-                rel = path.relative_to(library).as_posix()
-                contained(library, rel, existing=True)
-                fingerprint = sha256(path)
-                analysis = self.probe(path)
-                nfo_path = path.parent / "movie.nfo"
-                identity = (
-                    read_nfo(nfo_path) if nfo_path.is_file() and not nfo_path.is_symlink() else {}
-                )
-                provider_id = identity.get("provider_id")
-                previous = self.db.rows(
-                    select(p.assets).where(
-                        p.assets.c.root == "library", p.assets.c.relative_path == rel
-                    )
-                )
-                prior = previous[0] if previous else None
-                bg = bg_state(analysis, fingerprint, [])
-                if prior:
-                    records = self.db.rows(
-                        select(p.evidence_tables["bg_audio_evidence"])
-                        .where(p.evidence_tables["bg_audio_evidence"].c.asset_id == prior["id"])
-                        .order_by(p.evidence_tables["bg_audio_evidence"].c.created_at)
-                    )
-                    latest = {record["data"]["stream_key"]: record["data"] for record in records}
-                    if latest:
-                        bg = bg_state(analysis, fingerprint, list(latest.values()))
-                    elif (
-                        prior["fingerprint"] == fingerprint
-                        and prior["data"].get("bg") == "BG_VERIFIED"
-                    ):
-                        bg = "BG_VERIFIED"
-                data = {
-                    **(prior["data"] if prior and prior["fingerprint"] == fingerprint else {}),
-                    "identity": identity,
-                    "probe": analysis,
-                    "stream_keys": [
-                        {"index": s.get("index"), "key": digest(s)}
-                        for s in analysis["streams"]
-                        if s.get("codec_type") == "audio"
-                    ],
-                    "bg": bg,
-                    "integrity": False,
-                    "inventory_only": True,
-                    "dependencies": [],
-                    "issues": ["IDENTITY_REVIEW_REQUIRED"] if not provider_id else [],
-                }
-                for torrent in current:
-                    for file in torrent.files:
-                        qpath = torrent.save_path.rstrip("/") + "/" + file["name"]
-                        if qpath == "/library/" + rel:
-                            data["dependencies"].append(torrent.info_hash)
-                with self.db.transaction() as conn:
-                    conn.execute(
-                        pg_insert(p.assets)
-                        .values(
-                            root="library",
-                            relative_path=rel,
-                            fingerprint=fingerprint,
-                            identity_key="tmdb:movie:" + provider_id if provider_id else None,
-                            edition="Unknown",
-                            data=data,
-                        )
-                        .on_conflict_do_update(
-                            index_elements=["root", "relative_path"],
-                            set_={"fingerprint": fingerprint, "data": data},
-                        )
-                    )
-                self.db.heartbeat(task)
-        with self.db.transaction() as conn:
-            self.db.event(conn, "worker", "INVENTORY_COMPLETED", task["id"])
+        from app.inventory import execute
+
+        execute(self, task)
+        return
 
     def attach_subtitle(self, task: dict[str, Any]) -> None:
         candidate = self.db.one(
@@ -1138,6 +1069,30 @@ class Worker:
             if task["kind"] == "INVENTORY":
                 self.inventory(task)
                 done = True
+            elif task["kind"] == "BULK_ANALYZE":
+                from app.bulk import analyze
+
+                analyze(self, task)
+                done = True
+            elif task["kind"] == "BULK_EXECUTE":
+                from app.bulk import execute
+
+                done = execute(self, task)
+            elif task["kind"] == "BULK_RESTORE":
+                from app.bulk import restore
+
+                restore(self, task)
+                done = True
+            elif task["kind"] == "BULK_RESTORE_GROUP":
+                from app.bulk import restore_group
+
+                restore_group(self, task)
+                done = True
+            elif task["kind"] == "SUBTITLE_RESTORE":
+                from app.subtitle_history import restore
+
+                restore(self, task)
+                done = True
             elif task["kind"] == "IMPORT":
                 done = self.import_job(task)
             elif task["kind"] in {"QUARANTINE", "RESTORE", "NORMALIZE"}:
@@ -1158,8 +1113,13 @@ class Worker:
                 if candidate["data"].get("provider") != "OpenSubtitles" or not files:
                     raise GateError("SUBTITLE_CANDIDATE_UNAVAILABLE")
                 content = OpenSubtitles(self.cfg).download(int(files[0]["file_id"]))
+                from app.subtitle_history import decode_text
                 from app.subtitles import cues
 
+                content, encoding = decode_text(
+                    content,
+                    candidate["data"].get("attributes", {}).get("encoding", " ").strip().lower(),
+                )
                 cues(content)
                 with self.db.transaction() as conn:
                     conn.execute(
@@ -1169,6 +1129,7 @@ class Worker:
                             data={
                                 **candidate["data"],
                                 "content": content.decode("utf-8-sig"),
+                                "encoding": encoding,
                                 "status": "NeedsReview",
                             }
                         )

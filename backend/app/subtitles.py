@@ -1,6 +1,8 @@
 """Subtitle matching and non-destructive timing proposals."""
 
+import math
 import re
+from fractions import Fraction
 from typing import Any
 
 from app.adapters import Remote
@@ -15,7 +17,7 @@ class OpenSubtitles(Remote):
             "https://api.opensubtitles.com/api/v1/",
             {
                 "Api-Key": config.secret(config.subtitle_api_key_file).get_secret_value(),
-                "User-Agent": "ViMagMediaManager v1.0.0-rc.1",
+                "User-Agent": "ViMagMediaManager v1.1.0-dev",
             },
         )
 
@@ -74,6 +76,26 @@ class OpenSubtitles(Remote):
 TIMING = re.compile(r"(\d{2}):(\d{2}):(\d{2}),(\d{3})\s*-->\s*(\d{2}):(\d{2}):(\d{2}),(\d{3})")
 
 
+def media_evidence(data: dict[str, Any], fingerprint: str, edition: str | None) -> dict[str, Any]:
+    probe = data.get("probe", {})
+    video: dict[str, Any] = next(
+        (s for s in probe.get("streams", []) if s.get("codec_type") == "video"), {}
+    )
+    try:
+        fps = float(Fraction(str(video.get("avg_frame_rate") or video.get("r_frame_rate") or "0")))
+        duration = float(probe["format"]["duration"])
+    except (ValueError, KeyError, ZeroDivisionError):
+        raise GateError("SUBTITLE_MEDIA_TIMING_UNKNOWN") from None
+    if not math.isfinite(duration) or duration <= 0:
+        raise GateError("SUBTITLE_MEDIA_TIMING_UNKNOWN")
+    return {
+        "fingerprint": fingerprint,
+        "edition": edition,
+        "duration": duration,
+        "fps": fps if fps > 0 else None,
+    }
+
+
 def cues(content: bytes) -> list[tuple[float, float]]:
     try:
         value = content.decode("utf-8-sig")
@@ -114,6 +136,12 @@ def evaluate(
         reasons.append("FPS_DRIFT")
     if candidate.get("offset", 0) or candidate.get("drift", 0):
         reasons.append("TIMING_DRIFT")
+    if candidate.get("duration") and abs(candidate["duration"] - media["duration"]) > 1:
+        reasons.append("DURATION_MISMATCH")
+    if candidate.get("complete") is False:
+        reasons.append("INCOMPLETE_SUBTITLE")
+    if candidate.get("language") and candidate["language"] not in {"bg", "bul"}:
+        reasons.append("LANGUAGE_MISMATCH")
     state = "Mismatch" if reasons else "NeedsReview"
     if not reasons and verification and verification.get("actor") and verification.get("time"):
         if (

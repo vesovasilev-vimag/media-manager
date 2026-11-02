@@ -60,7 +60,7 @@ def backup(db: p.Database, destination: Path) -> dict[str, Any]:
         "sha256": checksum,
         "format": "pg_dump-custom",
         "created_at": p.now().isoformat(),
-        "release": "1.0.0-rc.1",
+        "release": "1.1.0-dev",
     }
     destination.with_suffix(".manifest.json").write_text(json.dumps(manifest, indent=2))
     return manifest
@@ -71,7 +71,7 @@ def restore(
 ) -> None:
     if not confirmed_empty or (
         manifest["schema"] != "EMPTY"
-        and not compatible(manifest["schema"], {"compatible_schemas": ["0001"]})
+        and not compatible(manifest["schema"], {"compatible_schemas": ["0001", "0002"]})
     ):
         raise GateError("RESTORE_GATE_CLOSED")
     with source.open("rb") as stream:

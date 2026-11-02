@@ -25,7 +25,7 @@ from sqlalchemy import (
     text,
     update,
 )
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.engine import Connection, Engine
 
@@ -179,6 +179,19 @@ assets = table(
     Column("edition", String),
     Column("fingerprint", String(64), nullable=False),
     Column("data", JSONB, nullable=False),
+    Column("title", String, nullable=False, server_default=""),
+    Column("category", String),
+    Column("video_quality", String),
+    Column("audio_codecs", ARRAY(String), nullable=False, server_default="{}"),
+    Column("audio_languages", ARRAY(String), nullable=False, server_default="{}"),
+    Column("subtitle_languages", ARRAY(String)),
+    Column("file_size_bytes", BigInteger),
+    Column("mtime_ns", BigInteger),
+    Column("observed_size", BigInteger),
+    Column("availability", String, nullable=False, server_default="AVAILABLE"),
+    Column("workflow_state", String, nullable=False, server_default="ACTIVE"),
+    Column("last_seen", DateTime(timezone=True)),
+    Column("revision", Integer, nullable=False, server_default="1"),
     constraints=(UniqueConstraint("root", "relative_path"),),
 )
 refs = table(
@@ -244,6 +257,45 @@ evidence_tables = {
         "jellyfin_verifications",
     )
 }
+
+policies = table(
+    "library_policies",
+    Column("revision", Integer, nullable=False, unique=True),
+    Column("data", JSONB, nullable=False),
+    Column("sha256", String(64), nullable=False),
+    Column("actor", String, nullable=False),
+)
+scans = table(
+    "library_scans",
+    Column("task_id", UUID(as_uuid=False), ForeignKey(tasks.c.id), nullable=False),
+    Column("scope", JSONB, nullable=False),
+    Column("state", String, nullable=False),
+    Column("data", JSONB, nullable=False, default=dict),
+)
+maintenance_files = table(
+    "maintenance_files",
+    Column("job_id", UUID(as_uuid=False), ForeignKey(jobs.c.id), nullable=False),
+    Column("asset_id", UUID(as_uuid=False), ForeignKey(assets.c.id), nullable=False),
+    Column("state", String, nullable=False),
+    Column("phase", Integer, nullable=False, default=0),
+    Column("attempts", Integer, nullable=False, default=0),
+    Column("data", JSONB, nullable=False),
+    constraints=(UniqueConstraint("job_id", "asset_id"),),
+)
+subtitle_versions = table(
+    "subtitle_versions",
+    Column("asset_id", UUID(as_uuid=False), ForeignKey(assets.c.id), nullable=False),
+    Column("generation", Integer, nullable=False),
+    Column("data", JSONB, nullable=False),
+    constraints=(UniqueConstraint("asset_id", "generation"),),
+)
+tombstones = table(
+    "asset_tombstones",
+    Column("asset_id", UUID(as_uuid=False), ForeignKey(assets.c.id), nullable=False),
+    Column("job_id", UUID(as_uuid=False), ForeignKey(jobs.c.id), nullable=False),
+    Column("data", JSONB, nullable=False),
+    constraints=(UniqueConstraint("job_id", "asset_id"),),
+)
 
 
 class Database:

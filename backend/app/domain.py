@@ -174,7 +174,9 @@ def name_for(category: str, i: Identity, quality: str, bg: str, extension: str) 
         if not i.provider_id.isdecimal():
             raise GateError("INVALID_PROVIDER_ID")
         folder += f" [tmdbid-{i.provider_id}]"
-    label = component(quality) + (" BG" if bg == "BG_VERIFIED" else "")
+    label = component(quality) + (
+        " BG" if bg in {"BG_VERIFIED", "BG_TAGGED", "BG_DETECTED"} else ""
+    )
     if i.edition:
         label += " - " + component(i.edition)
     if i.media_type == "show":
@@ -213,6 +215,12 @@ def bg_state(probe: dict[str, Any], fingerprint: str, evidence: list[dict[str, A
             for e in evidence
         ):
             return "BG_VERIFIED"
+    if any(
+        s.get("tags", {}).get("language", "").lower() in {"bul", "bg"}
+        and re.search(r"\b(english|английски|eng)\b", s.get("tags", {}).get("title", "").lower())
+        for s in audio
+    ):
+        return "AUDIO_UNKNOWN"
     if any(s.get("tags", {}).get("language", "").lower() in {"bul", "bg"} for s in audio):
         return "BG_TAGGED"
     if not audio or any(s.get("tags", {}).get("language", "und") == "und" for s in audio):
@@ -267,8 +275,8 @@ def compare(old: dict[str, Any], new: dict[str, Any]) -> dict[str, Any]:
         reasons = ["INTEGRITY_UNVERIFIED"]
     elif "AUDIO_UNKNOWN" in {old.get("bg"), new.get("bg")}:
         reasons = ["AUDIO_UNKNOWN"]
-    elif old.get("bg") == "BG_VERIFIED":
-        if new.get("bg") != "BG_VERIFIED":
+    elif old.get("bg") in {"BG_VERIFIED", "BG_TAGGED", "BG_DETECTED"}:
+        if new.get("bg") not in {"BG_VERIFIED", "BG_TAGGED", "BG_DETECTED"}:
             decision = "KeepBoth" if new.get("material_improvement_verified") else "KeepBGPreferred"
             reasons = [
                 "PRESERVE_VERIFIED_BG",
@@ -278,7 +286,7 @@ def compare(old: dict[str, Any], new: dict[str, Any]) -> dict[str, Any]:
             ]
         elif new.get("material_improvement_verified"):
             decision, reasons = "PreferBetterBG", ["VERIFIED_BG", "MATERIAL_IMPROVEMENT_VERIFIED"]
-    elif new.get("bg") == "BG_VERIFIED":
+    elif new.get("bg") in {"BG_VERIFIED", "BG_TAGGED", "BG_DETECTED"}:
         decision, reasons = "KeepBoth", ["NEW_VERIFIED_BG", "PRESERVE_EXISTING_VERSION"]
     return {"decision": decision, "reason_codes": reasons, "factors": factors, "policy": 1}
 

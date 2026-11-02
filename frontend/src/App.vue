@@ -16,6 +16,8 @@ import {
   Menu,
 } from "lucide-vue-next";
 import { api, ApiError } from "./api";
+import LibraryOperations from "./LibraryOperations.vue";
+import LibraryOrganization from "./LibraryOrganization.vue";
 import type {
   Asset,
   Audit,
@@ -63,6 +65,22 @@ const username = ref(""),
   password = ref(""),
   setupToken = ref(""),
   sidebar = ref(false);
+const collapsed = ref(
+  localStorage.getItem("vimag-sidebar-collapsed") === "true",
+);
+const narrow = ref(window.innerWidth <= 900);
+function viewportChanged() {
+  narrow.value = window.innerWidth <= 900;
+  if (!narrow.value) sidebar.value = false;
+}
+function toggleSidebar() {
+  if (narrow.value) {
+    sidebar.value = !sidebar.value;
+    return;
+  }
+  collapsed.value = !collapsed.value;
+  localStorage.setItem("vimag-sidebar-collapsed", String(collapsed.value));
+}
 const route = ref(location.hash.slice(1) || "dashboard"),
   jobs = ref<Job[]>([]),
   selected = ref<Job>(),
@@ -77,7 +95,6 @@ const search = ref(""),
   category = ref(""),
   state = ref(""),
   offset = ref(0),
-  grid = ref(true),
   activeStep = ref(0),
   tab = ref("overview");
 const reviewItem = ref(""),
@@ -93,10 +110,7 @@ const reviewItem = ref(""),
   reviewDecision = ref("KeepBoth"),
   materialImprovement = ref(false);
 const approvalChecked = ref(false),
-  pendingQuarantine = ref<Plan>(),
-  quarantineRows = ref<
-    { id: string; state: string; data: Record<string, string> }[]
-  >([]);
+  pendingQuarantine = ref<Plan>();
 const subtitleReview = ref<Evidence>(),
   subtitleText = ref(""),
   subtitleOffset = ref(0),
@@ -130,23 +144,6 @@ async function downloadSubtitle(sub: Evidence) {
     await refresh();
   });
 }
-async function verifyAssetBg(
-  asset: Asset,
-  key: string,
-  action: "verify" | "revoke",
-) {
-  await attempt(async () => {
-    await api(`/library/assets/${asset.id}/bg-evidence`, "POST", {
-      fingerprint: asset.fingerprint,
-      stream_key: key,
-      action,
-      reason: "Ръчно stream-bound потвърждение от администратора",
-    });
-    notice.value =
-      "BG доказателството е записано. Името се променя чрез одобрен план за нормализация.";
-    await refresh();
-  });
-}
 async function syncSubtitle() {
   await attempt(async () => {
     const result = await api<{ content: string }>(
@@ -167,6 +164,27 @@ async function attachSubtitle() {
   await attempt(async () => {
     const sub = subtitleReview.value;
     if (!sub || !subtitleConfirmed.value) return;
+    if (sub.asset_id) {
+      await api(`/library/assets/${sub.asset_id}/subtitles/accept`, "POST", {
+        asset_revision: sub.asset_revision,
+        fingerprint: sub.context?.fingerprint,
+        edition: sub.context?.identity?.edition ?? "Unknown",
+        content: subtitleText.value,
+        duration: Number(sub.context?.probe?.format?.duration),
+        language: "bg",
+        kind: "normal",
+        complete: true,
+        timing_confirmed: true,
+        source_quality: "reviewed",
+        provider: String(sub.data.provider ?? "manual"),
+        release: String(sub.data.id ?? sub.id),
+      });
+      subtitleReview.value = undefined;
+      notice.value =
+        "Кандидатът е приет. Приложете го чрез план за нормализация в Библиотека.";
+      await refresh();
+      return;
+    }
     await api("/subtitles/verify", "POST", {
       item_id: sub.item_id,
       fingerprint: sub.context?.fingerprint,
@@ -188,29 +206,10 @@ const settingsTab = ref("connections"),
     { key: string; value: Record<string, unknown>; revision: number }[]
   >([]);
 const normalizingAsset = ref<Asset>();
-function normalizeAsset(asset: Asset) {
-  normalizingAsset.value = asset;
-  reviewItem.value = "asset:" + asset.id;
-  materialImprovement.value = false;
-  reviewTitle.value = asset.data.identity?.title ?? "";
-  reviewYear.value = asset.data.identity?.year ?? 2026;
-  reviewType.value = asset.data.identity?.media_type ?? "movie";
-  reviewProvider.value = asset.data.identity?.provider_id ?? "";
-  reviewReason.value = "";
-}
 const title = computed(() =>
   route.value.startsWith("job/")
     ? "Детайли на задача"
     : (routes.find((r) => r.id === route.value)?.label ?? "Табло"),
-);
-const filteredAssets = computed(() =>
-  assets.value.filter(
-    (a) =>
-      !search.value ||
-      JSON.stringify(a.data.identity ?? a.relative_path)
-        .toLowerCase()
-        .includes(search.value.toLowerCase()),
-  ),
 );
 const counts = ref<Record<string, number>>({});
 const total = computed(() =>
@@ -322,18 +321,7 @@ async function refresh() {
         plan.value = undefined;
       }
     } else if (route.value === "library") {
-      assets.value = (
-        await api<{ items: Asset[] }>(
-          "/library/assets?" +
-            new URLSearchParams({
-              category: category.value,
-              offset: String(offset.value),
-            }),
-        )
-      ).items;
-      quarantineRows.value = (
-        await api<{ items: typeof quarantineRows.value }>("/library/quarantine")
-      ).items;
+      health.value = await api<Health>("/health/ready");
     } else if (route.value === "comparison")
       decisions.value = (
         await api<{ items: Evidence[] }>("/library/duplicates")
@@ -431,15 +419,6 @@ async function saveReview() {
     await refresh();
   });
 }
-async function proposeQuarantine(asset: Asset) {
-  await attempt(async () => {
-    pendingQuarantine.value = await api<Plan>(
-      `/library/assets/${asset.id}/quarantine-plan`,
-      "POST",
-    );
-    approvalChecked.value = false;
-  });
-}
 async function approveQuarantine() {
   await attempt(async () => {
     const q = pendingQuarantine.value;
@@ -456,19 +435,6 @@ async function approveQuarantine() {
     pendingQuarantine.value = undefined;
     notice.value = "Планът е одобрен; live dependency проверката предстои.";
     await refresh();
-  });
-}
-async function restore(id: string) {
-  await attempt(async () => {
-    await api(`/library/quarantine/${id}/restore`, "POST");
-    notice.value = "Възстановяването е заявено с проверка за collision.";
-    await refresh();
-  });
-}
-async function scan() {
-  await attempt(async () => {
-    await api("/library/scan", "POST");
-    notice.value = "Read-only обследването е добавено в опашката.";
   });
 }
 async function approveSidecar(conflict: {
@@ -500,6 +466,7 @@ async function saveSettings() {
   });
 }
 onMounted(async () => {
+  window.addEventListener("resize", viewportChanged);
   window.addEventListener("hashchange", handleHash);
   try {
     await api("/me");
@@ -515,6 +482,7 @@ onMounted(async () => {
   }, 5000);
 });
 onUnmounted(() => {
+  window.removeEventListener("resize", viewportChanged);
   window.removeEventListener("hashchange", handleHash);
   if (timer) clearInterval(timer);
 });
@@ -568,7 +536,7 @@ onUnmounted(() => {
       </button>
     </form>
   </div>
-  <div v-else class="app-shell">
+  <div v-else class="app-shell" :class="{ collapsed }">
     <aside :class="['sidebar', { open: sidebar }]">
       <div class="brand">
         <span class="logo">VM</span
@@ -580,6 +548,8 @@ onUnmounted(() => {
           v-for="r in routes"
           :key="r.id"
           :class="{ active: route === r.id }"
+          :title="collapsed ? r.label : undefined"
+          :aria-label="r.label"
           :aria-current="route === r.id ? 'page' : undefined"
           @click="navigate(r.id)"
         >
@@ -591,16 +561,17 @@ onUnmounted(() => {
           health?.write_enabled ? "Контролирани операции" : "Защитен режим"
         }}</strong>
         <p>Legacy torrents са защитени.</p>
-        <span class="badge">1.0.0-rc.1</span>
+        <span class="badge">1.1.0-dev</span>
       </div>
     </aside>
     <div class="workspace">
       <header>
         <div class="row">
           <button
-            class="icon mobile"
-            aria-label="Навигация"
-            @click="sidebar = !sidebar"
+            class="icon"
+            aria-label="Прибери или разгъни навигацията"
+            :aria-expanded="narrow ? sidebar : !collapsed"
+            @click="toggleSidebar()"
           >
             <Menu :size="18" /></button
           ><span class="muted">Работно пространство</span><span>/</span
@@ -636,14 +607,6 @@ onUnmounted(() => {
               }}
             </p>
           </div>
-          <button
-            v-if="route === 'library'"
-            class="primary"
-            :disabled="busy"
-            @click="scan"
-          >
-            <RefreshCw :size="16" />Обследвай библиотеката
-          </button>
         </div>
         <p v-if="error" role="alert" class="warning">{{ error }}</p>
         <p v-if="notice" role="status" class="notice">{{ notice }}</p>
@@ -1022,110 +985,7 @@ onUnmounted(() => {
             </p>
           </section>
         </template>
-        <template v-if="route === 'library'">
-          <div class="filters panel">
-            <input
-              v-model="search"
-              aria-label="Търси в библиотеката"
-              placeholder="Заглавие или път…"
-            /><select
-              v-model="category"
-              aria-label="Филтрирай категория"
-              @change="
-                offset = 0;
-                refresh();
-              "
-            >
-              <option value="">Всички категории</option>
-              <option v-for="(name, key) in categories" :key="key" :value="key">
-                {{ name }}
-              </option></select
-            ><button @click="grid = !grid">
-              {{ grid ? "Списък" : "Решетка" }}
-            </button>
-          </div>
-          <div :class="grid ? 'library-grid' : 'library-list'">
-            <article
-              v-for="asset in filteredAssets"
-              :key="asset.id"
-              class="panel library-card"
-            >
-              <div v-if="grid" class="cover">
-                <Library :size="40" /><strong>{{
-                  asset.data.identity?.title ?? "Неидентифицирано съдържание"
-                }}</strong>
-              </div>
-              <div class="pad">
-                <h2>{{ asset.data.identity?.title ?? asset.relative_path }}</h2>
-                <p class="muted">{{ asset.edition }}</p>
-                <div class="row">
-                  <span class="badge">{{ asset.data.bg }}</span
-                  ><span class="badge">{{
-                    asset.data.integrity ? "Verified" : "Inventory only"
-                  }}</span>
-                </div>
-                <details>
-                  <summary>Файл и зависимости</summary>
-                  <pre>{{ JSON.stringify(asset, null, 2) }}</pre>
-                </details>
-                <div
-                  v-for="stream in (asset.data.stream_keys as {
-                    index: number;
-                    key: string;
-                  }[]) ?? []"
-                  :key="stream.key"
-                  class="row"
-                >
-                  <span>Audio {{ stream.index }}</span>
-                  <button
-                    :disabled="busy"
-                    @click="verifyAssetBg(asset, stream.key, 'verify')"
-                  >
-                    Потвърди BG
-                  </button>
-                  <button
-                    :disabled="busy"
-                    @click="verifyAssetBg(asset, stream.key, 'revoke')"
-                  >
-                    Отмени BG
-                  </button>
-                </div>
-                <button
-                  :disabled="busy || !!asset.data.dependencies?.length"
-                  @click="proposeQuarantine(asset)"
-                >
-                  Предложи quarantine
-                </button>
-                <button
-                  :disabled="busy || !!asset.data.dependencies?.length"
-                  @click="normalizeAsset(asset)"
-                >
-                  План за нормализация
-                </button>
-              </div>
-            </article>
-          </div>
-          <p v-if="!assets.length" class="panel empty">
-            Библиотеката още не е обследвана. Read-only scan създава инвентар
-            без промяна на файловете.
-          </p>
-          <section class="panel pad">
-            <h2>Възстановима карантина</h2>
-            <article v-for="q in quarantineRows" :key="q.id" class="operation">
-              <span>{{ q.data.source }}</span
-              ><span class="badge">{{ q.state }}</span
-              ><button
-                :disabled="q.state !== 'QUARANTINED' || busy"
-                @click="restore(q.id)"
-              >
-                Възстанови
-              </button>
-            </article>
-            <p v-if="!quarantineRows.length" class="muted">
-              Няма преместени активи.
-            </p>
-          </section>
-        </template>
+        <LibraryOperations v-if="route === 'library'" />
         <template v-if="route === 'comparison'"
           ><div class="notice">
             <ShieldCheck :size="18" />Българският дублаж се пази. Препоръката не
@@ -1294,27 +1154,12 @@ onUnmounted(() => {
                 <p class="muted">
                   Ключовете се предоставят като Worker secret файлове.
                 </p></template
-              ><template v-else-if="settingsTab === 'naming'"
-                ><h2>Категории и имена</h2>
-                <dl>
-                  <template v-for="(name, key) in categories" :key="key"
-                    ><dt>{{ key }}</dt>
-                    <dd>{{ name }}</dd></template
-                  >
-                </dl>
-                <p>
-                  Филм: Title (Year) [tmdbid-ID] / точен folder prefix - Quality
-                  - Edition
-                </p>
-                <p>
-                  Animations и Documentaries: отделни Movies / Series
-                  поддиректории.
-                </p>
-                <p>BG маркер: само след stream-bound BG_VERIFIED.</p></template
-              ><template v-else-if="settingsTab === 'quality'"
+              >
+              <LibraryOrganization v-else-if="settingsTab === 'naming'" />
+              <template v-else-if="settingsTab === 'quality'"
                 ><h2>Bulgarian-first</h2>
                 <ul>
-                  <li>Пази проверения BG дублаж.</li>
+                  <li>Пази открития BG дублаж.</li>
                   <li>
                     Съществено по-добро non-BG видео: Keep Both след
                     доказателства.
@@ -1323,7 +1168,10 @@ onUnmounted(() => {
                     Resolution и размер сами по себе си не доказват качество.
                   </li>
                   <li>Различните editions остават отделни версии.</li>
-                  <li>Няма permanent library delete във v1.</li>
+                  <li>
+                    Физическо изтриване само с отделен потвърден план и
+                    dependency проверки.
+                  </li>
                 </ul></template
               ><template v-else-if="settingsTab === 'system'"
                 ><h2>Диагностика и audit</h2>

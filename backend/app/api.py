@@ -99,12 +99,18 @@ def create_app(config: Settings | None = None, database: p.Database | None = Non
     db = database or p.Database(cfg)
     app = FastAPI(
         title="ViMag Media Manager",
-        version="1.0.0-rc.1",
+        version="1.1.0-dev",
         docs_url=None,
         redoc_url=None,
         openapi_url=None,
     )
     app.state.db, app.state.config = db, cfg
+
+    @app.exception_handler(HTTPException)
+    async def http_error(_: Request, exc: HTTPException) -> JSONResponse:
+        return JSONResponse(
+            {"code": str(exc.detail)}, status_code=exc.status_code, headers=exc.headers
+        )
 
     @app.exception_handler(GateError)
     async def gate_error(_: Request, exc: GateError) -> JSONResponse:
@@ -226,7 +232,7 @@ def create_app(config: Settings | None = None, database: p.Database | None = Non
 
     @app.get("/api/v1/health/live")
     def live() -> dict[str, Any]:
-        return {"alive": True, "version": "1.0.0-rc.1"}
+        return {"alive": True, "version": "1.1.0-dev"}
 
     @app.post("/api/v1/auth/setup", status_code=201)
     def setup(body: Setup, request: Request) -> dict[str, bool]:
@@ -342,7 +348,7 @@ def create_app(config: Settings | None = None, database: p.Database | None = Non
         if age is not None and age > max(120, cfg.poll_seconds * 3):
             value["state"] = "STALE"
         return {
-            "database": revision == "0001",
+            "database": revision == "0002",
             "schema": revision,
             "worker": value,
             "write_enabled": cfg.write_enabled,
@@ -425,6 +431,9 @@ def create_app(config: Settings | None = None, database: p.Database | None = Non
             select(p.audit).where(p.audit.c.target == jid).order_by(p.audit.c.created_at)
         )
         result["steps"] = STEPS
+        result["maintenance_files"] = db.rows(
+            select(p.maintenance_files).where(p.maintenance_files.c.job_id == jid)
+        )
         return result
 
     @app.get("/api/v1/jobs/{job_id}/plan", dependencies=[Depends(admin)])
@@ -469,6 +478,7 @@ def create_app(config: Settings | None = None, database: p.Database | None = Non
                 if (
                     not job
                     or not plan
+                    or job["kind"].startswith("BULK_")
                     or job["revision"] != body.plan_revision
                     or plan["sha256"] != body.plan_sha256
                 ):
@@ -587,6 +597,8 @@ def create_app(config: Settings | None = None, database: p.Database | None = Non
                 )
                 if not row:
                     raise GateError("NOT_FOUND")
+                if row["kind"].startswith("BULK_"):
+                    raise GateError("USE_MAINTENANCE_CONTROLS")
                 if row["state"] in {"Completed", "CompletedWithWarnings"}:
                     raise GateError("TERMINAL_JOB")
                 conn.execute(
@@ -607,16 +619,35 @@ def create_app(config: Settings | None = None, database: p.Database | None = Non
 
     @app.get("/api/v1/library/assets", dependencies=[Depends(admin)])
     def library(
-        category: str | None = None,
+        category: Literal["movies", "series", "animations", "documentaries", "concerts"]
+        | None = None,
+        search: str = Query("", max_length=128),
+        video_quality: Literal["SD", "HD", "Full HD", "2K", "4K", "8K"] | None = None,
+        audio_codec: str | None = Query(None, pattern="^[a-z0-9_]{1,32}$"),
+        audio_language: str | None = Query(None, pattern="^([a-z]{2,3}|unknown|none)$"),
+        subtitle_language: str | None = Query(None, pattern="^([a-z]{2,3}|unknown|none)$"),
+        sort: Literal["title", "category", "quality", "size", "path"] = "title",
+        order: Literal["asc", "desc"] = "asc",
         limit: int = Query(50, ge=1, le=200),
         offset: int = Query(0, ge=0),
     ) -> dict[str, Any]:
-        query = select(p.assets)
-        if category in CATEGORIES:
-            query = query.where(p.assets.c.relative_path.like(CATEGORIES[category] + "/%"))
-        return {
-            "items": db.rows(query.order_by(p.assets.c.relative_path).limit(limit).offset(offset))
-        }
+        from app.catalogue import page
+
+        return page(
+            db,
+            {
+                "category": category,
+                "search": search,
+                "video_quality": video_quality,
+                "audio_codec": audio_codec,
+                "audio_language": audio_language,
+                "subtitle_language": subtitle_language,
+                "sort": sort,
+                "order": order,
+                "limit": limit,
+                "offset": offset,
+            },
+        )
 
     @app.get("/api/v1/library/duplicates", dependencies=[Depends(admin)])
     def duplicates() -> dict[str, Any]:
@@ -638,16 +669,27 @@ def create_app(config: Settings | None = None, database: p.Database | None = Non
 
     @app.get("/api/v1/subtitles", dependencies=[Depends(admin)])
     def subtitles() -> dict[str, Any]:
-        return {
-            "items": db.rows(
-                select(p.evidence_tables["subtitle_candidates"], p.items.c.data.label("context"))
-                .outerjoin(
-                    p.items, p.items.c.id == p.evidence_tables["subtitle_candidates"].c.item_id
-                )
-                .order_by(p.evidence_tables["subtitle_candidates"].c.created_at.desc())
-                .limit(200)
+        rows = db.rows(
+            select(
+                p.evidence_tables["subtitle_candidates"],
+                p.items.c.data.label("context"),
+                p.assets.c.data.label("asset_context"),
+                p.assets.c.revision.label("asset_revision"),
+                p.assets.c.fingerprint.label("asset_fingerprint"),
             )
-        }
+            .outerjoin(p.items, p.items.c.id == p.evidence_tables["subtitle_candidates"].c.item_id)
+            .outerjoin(
+                p.assets, p.assets.c.id == p.evidence_tables["subtitle_candidates"].c.asset_id
+            )
+            .order_by(p.evidence_tables["subtitle_candidates"].c.created_at.desc())
+            .limit(200)
+        )
+        for row in rows:
+            if row["asset_context"] is not None:
+                row["context"] = {**row["asset_context"], "fingerprint": row["asset_fingerprint"]}
+            row.pop("asset_context")
+            row.pop("asset_fingerprint")
+        return {"items": rows}
 
     @app.get("/api/v1/settings", dependencies=[Depends(admin)])
     def settings() -> dict[str, Any]:
@@ -661,7 +703,7 @@ def create_app(config: Settings | None = None, database: p.Database | None = Non
             ),
             "write_enabled": cfg.write_enabled,
             "categories": CATEGORIES,
-            "version": "1.0.0-rc.1",
+            "version": "1.1.0-dev",
         }
 
     @app.put("/api/v1/settings/{section}", status_code=202)
@@ -701,10 +743,7 @@ def create_app(config: Settings | None = None, database: p.Database | None = Non
         with db.transaction() as conn:
 
             def apply() -> dict[str, Any]:
-                task_id = p.uid()
-                conn.execute(insert(p.tasks).values(id=task_id, kind="INVENTORY"))
-                db.event(conn, session["user_id"], "INVENTORY_REQUESTED", task_id)
-                return {"operation_id": task_id}
+                return app.state.enqueue_scan(conn, list(CATEGORIES), session["user_id"])
 
             return command(conn, request, session["user_id"], {}, apply)
 
@@ -903,7 +942,7 @@ def create_app(config: Settings | None = None, database: p.Database | None = Non
                     insert(p.tasks).values(id=task_id, job_id=plan["job_id"], kind="QUARANTINE")
                 )
                 db.event(conn, session["user_id"], "QUARANTINE_APPROVED", plan["job_id"])
-                return {"operation_id": task_id}
+                return {"operation_id": task_id, "job_id": plan["job_id"]}
 
             return command(conn, request, session["user_id"], body.model_dump(mode="json"), apply)
 
@@ -934,6 +973,11 @@ def create_app(config: Settings | None = None, database: p.Database | None = Non
                     "target": manifest["data"]["source"],
                     "fingerprint": manifest["data"]["fingerprint"],
                 }
+                if manifest["data"].get("bulk"):
+                    data["files"] = [
+                        {**entry, "source": entry["target"], "target": entry["source"]}
+                        for entry in manifest["data"]["files"]
+                    ]
                 conn.execute(
                     insert(p.jobs).values(id=job_id, kind="RESTORE", state="Queued", revision=1)
                 )
@@ -950,9 +994,15 @@ def create_app(config: Settings | None = None, database: p.Database | None = Non
                         action="APPROVE_RESTORE",
                     )
                 )
-                conn.execute(insert(p.tasks).values(id=task_id, job_id=job_id, kind="RESTORE"))
+                conn.execute(
+                    insert(p.tasks).values(
+                        id=task_id,
+                        job_id=job_id,
+                        kind="BULK_RESTORE" if manifest["data"].get("bulk") else "RESTORE",
+                    )
+                )
                 db.event(conn, session["user_id"], "RESTORE_APPROVED", job_id)
-                return {"operation_id": task_id}
+                return {"operation_id": task_id, "job_id": job_id}
 
             return command(
                 conn, request, session["user_id"], {"manifest_id": str(manifest_id)}, apply
@@ -1337,6 +1387,9 @@ def create_app(config: Settings | None = None, database: p.Database | None = Non
                 conn, request, session["user_id"], {"candidate_id": str(candidate_id)}, apply
             )
 
+    from app.library_api import register
+
+    register(app, db, admin, command)
     return app
 
 
