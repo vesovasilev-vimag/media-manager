@@ -1,6 +1,6 @@
 # ViMag Media Manager
 
-> **v1.1 Library Maintenance:** implementation is reviewed in [PR #4](https://github.com/vesovasilev-vimag/media-manager/pull/4), targeting `codex/rc1`. Approved [requirements](docs/v1.1/README.md), [traceability](docs/v1.1/traceability.md), [technical decisions](docs/v1.1/implementation-decisions.md) and [operations/recovery](docs/v1.1/operations-and-recovery.md) are versioned separately. Production writes, intake, release publication and deployment remain separately authorized.
+> **v1.1 Library Maintenance:** [PR #4](https://github.com/vesovasilev-vimag/media-manager/pull/4) targets `codex/rc1`; the [implementation report](docs/v1.1/implementation-report.md) records passing CI/security and test evidence. Approved [requirements](docs/v1.1/README.md), [traceability](docs/v1.1/traceability.md), [technical decisions](docs/v1.1/implementation-decisions.md) and [operations/recovery](docs/v1.1/operations-and-recovery.md) are versioned separately. Production writes, intake, release publication and deployment remain separately authorized.
 
 
 Self-hosted media imports for qBittorrent and Jellyfin: Vue 3, FastAPI, a separate Python/ffprobe Worker and PostgreSQL. Four runtime containers and two custom images, with Bulgarian-first, edition-aware organization, guarded torrent moves, hardlinks, sidecars, subtitles and reversible quarantine.

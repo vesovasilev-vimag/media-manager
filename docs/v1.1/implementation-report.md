@@ -1,6 +1,6 @@
 # ViMag v1.1 implementation report
 
-Review deliverable: [PR #4](https://github.com/vesovasilev-vimag/media-manager/pull/4), `codex/v1.1-library-maintenance` → `codex/rc1`. Owner-authorized baseline: `645bebf85fabf05f8b33ce91fd0fbeef721679e3`. This work does not publish a release or authorize production deployment.
+Review deliverable: [PR #4](https://github.com/vesovasilev-vimag/media-manager/pull/4), `codex/v1.1-library-maintenance` → `codex/rc1`. **Implementation verification: PASS; ready for a separate deployment decision.** Owner-authorized baseline: `645bebf85fabf05f8b33ce91fd0fbeef721679e3`. This work does not publish a release or authorize production deployment.
 
 ## Implemented behavior
 
@@ -22,15 +22,19 @@ Subtitle candidates carry timing, FPS/duration, encoding, edition, completeness 
 | Browser, rebuilt four-container synthetic stack | **2 passed**; seven screens, responsive sidebar, pagination/filter/card selection, compact deletion preview, hierarchy/token persistence and zero filesystem changes on policy save; desktop/mobile screenshots visually reviewed |
 | Real Jellyfin 10.10.7, pinned isolated container | **PASS**: two films, four edition sources, one current BG subtitle per source, zero discovered history tracks; exact-path application adapter recognition verified |
 | OpenAPI and repository hygiene | OpenAPI regenerated; `git diff --check` passed; historical RC1 release evidence and immutable artifacts preserved |
-| Hosted CI/security | Follow-up publication and final hosted verification in progress; this row must be replaced before final handoff |
+| Hosted CI | **PASS**, [run 41521447792](https://github.com/vesovasilev-vimag/media-manager/actions/runs/41521447792), source `80dce4f7d6d0efe1e90518da011ff35f29e11f22`: backend, frontend and browser jobs all successful |
+| Hosted security | **PASS**, [run 41521447244](https://github.com/vesovasilev-vimag/media-manager/actions/runs/41521447244), same source: pip/npm audits, Bandit, Gitleaks and both Trivy container scans, with no HIGH/CRITICAL container findings permitted |
 
 [Traceability](traceability.md) and [machine-readable executed evidence](automated-evidence.json) identify exact test references and SHA-256 source fingerprints. Hosted workflow artifacts retain JUnit, isolated Jellyfin JSON and browser screenshots. T-25/BG and T-42/deletion are explicitly superseded by approved v1.1 decisions; original RC1 reports are unchanged.
+
+CI artifacts: [backend-evidence](https://github.com/vesovasilev-vimag/media-manager/actions/runs/41521447792/artifacts/13178146464), [frontend-evidence](https://github.com/vesovasilev-vimag/media-manager/actions/runs/41521447792/artifacts/13177901736), [browser-evidence](https://github.com/vesovasilev-vimag/media-manager/actions/runs/41521447792/artifacts/13178665082). Security artifacts are attached to the linked security run. GitHub retention applies; committed evidence remains reproducible from the fixtures and pinned workflows.
 
 ## Commits and review
 
 - Baseline: `645bebf85fabf05f8b33ce91fd0fbeef721679e3`.
 - Published implementation checkpoint: `2b6aaa9d0f79dd07dd71fb5bffe036536c79727a`.
-- Follow-up hardens crash recovery, per-file restore, sidecar/dependency proof, identity/subtitle concurrency, browser coverage and versioned evidence. Final source/check identities will be recorded after hosted verification.
+- Verified follow-up: `80dce4f7d6d0efe1e90518da011ff35f29e11f22`, tree `b2b6bd3ec116f89655589758ef1b542b663f4442`; hardens crash recovery, per-file restore, sidecar/dependency proof, identity/subtitle concurrency, browser coverage and versioned evidence.
+- The final documentation-only handoff commit records these results without changing the verified application, migration, tests, OpenAPI or workflow files. Its identity is available in the PR commit list; the source commit above is the reproducible verification reference.
 
 The connected repository-owner GitHub account publishes the feature branch. A separate local CLI account lacks push permission; connector-created commits are verified against the exact local Git tree, and local recovery commits are retained. No RC1 tag or published image is altered.
 

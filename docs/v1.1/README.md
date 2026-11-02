@@ -1,10 +1,10 @@
-# ViMag Media Manager v1.1 — documentation baseline
+# ViMag Media Manager v1.1
 
 **Status:** owner-approved requirements consolidated on 2026-11-02; implementation separately authorized by the owner on 2026-11-02 on `codex/v1.1-library-maintenance`, [PR #4](https://github.com/vesovasilev-vimag/media-manager/pull/4). See [progress](implementation-progress.md), [engineering decisions](implementation-decisions.md), [traceability](traceability.md), and [operations/recovery](operations-and-recovery.md). No production release/deployment is authorized by this work.
 **Documentation version:** 1.1.0-spec.1. **Baseline:** existing `codex/rc1` source and published immutable `v1.0.0-rc.1` artifact.
 **Scope:** library management, maintenance and approved UI; preserve existing RC1 ingest/seeding/security behaviour unless explicitly modified below.
 
-## Read order for future implementation (not an instruction to start development)
+## Approved requirements and reference read order
 
 1. `docs/v1.1/product-scope.md` — authoritative owner-approved behaviour and UI decisions.
 2. `docs/v1.1/engineering-contract.md` — engineering constraints, API/data model and acceptance.
