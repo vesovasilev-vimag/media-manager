@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-02T20:38:41.865076+00:00",
+  "generated_at": "2026-11-02T20:47:45.959252+00:00",
   "environment": "Disposable PostgreSQL/Linux, generated synthetic NAS media; no production access",
   "backend": [
     {
@@ -790,7 +790,7 @@
       "source": "workspace.spec.ts"
     }
   ],
-  "junit_sha256": "e825013e4819bec22bf9040c90d2ca143183c0abdd58642d0110802e8f90771b",
+  "junit_sha256": "d5fbe0d2c0873556bb3dc96dc013b54e2e16c66104a244d09c914363e6918cb1",
   "source_sha256": {
     "backend/app/__init__.py": "3df9329cf31cf999c8aa8f2bed9952c82d437e400c86f0bed05812dce1b64546",
     "backend/app/adapters.py": "3b2cfc41df8360ab01dc8fd76660f1ebcc065ab681011067413152903fca648f",
@@ -815,7 +815,7 @@
     "backend/app/worker.py": "201414d34623b643b7afeffec81f33fc693738128b419064e98f8818641a3ff5",
     "backend/alembic/env.py": "d5adc965d8f576850cc3eb5062242320b7069f84a63e78cf202db0a8f5992f49",
     "backend/alembic/versions/0001_initial.py": "fbbea5920ce859c2e3eb3b1bf4ee1ca00863ae9e269cf13a5d04e933422274f2",
-    "backend/alembic/versions/0002_library_maintenance.py": "1a53dfff8441301ea0526fc792e4ee8c555e281e831c92723e37e5e624b1c845",
+    "backend/alembic/versions/0002_library_maintenance.py": "2b9e7a0453524a476b37cfe60076f77748fefe0c7fff9a68f1e96bfc118e1fba",
     "tests/acceptance/test_enrichment.py": "1dbb047ab07c78b3a2bbbfd661bee608cf9d191560a47a698c0b0ebd83b797f0",
     "tests/acceptance/test_library_v11.py": "88d1d97cb680e9ea4b288f2470b7c27d22c0834f9d8e43c5e2a9b3ce48b6f3eb",
     "tests/acceptance/test_policies.py": "3db87029e69d79181a11dbf7ea391da8755707c5b0e51994170010c23928b384",
@@ -827,7 +827,7 @@
     "tests/fixtures/generate_fixture.py": "961d06a141e63daa4fcad0ac95a05474440d7921f428b2dcd0357fb847451d3f",
     "tests/fixtures/jellyfin_contract.py": "5dcf49e99641bf2293f814ec03a663a5a231c6f022d0101fc6f5eab2618ecc0a",
     "tests/fixtures/seed_browser.py": "c01290aafc442d46d84ec143b2fc9e18d91cd6fa1536ff395566bec4ddeb9071",
-    "tests/integration/test_migration_v11.py": "a3c80661a0538f26767cd48bcabfdce4f34504bc3a70b0d50aae0f4d5beddc4a",
+    "tests/integration/test_migration_v11.py": "913602a595638f512d61794bb8786ee8e6a9ad4674f7ccec41d4b84347735eb6",
     "tests/integration/test_operations.py": "4a5f817244b64d235059ec0954433a8da5f13f240d4bd467730ef972c836a17a",
     "tests/integration/test_release_contracts.py": "0225c420f6458bfcb2e8636223f89d9dbf33da5d6e408b293a87cbdd89707f76",
     "frontend/src/api.ts": "d1fee58e2a9e53ea2c3498c2177a87856960d42c622a2c4a19b4b270ecf0661f",

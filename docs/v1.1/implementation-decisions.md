@@ -4,7 +4,7 @@ The owner-approved product decisions remain in [decisions.md](decisions.md). The
 
 | ID | Choice | Reason |
 |---|---|---|
-| ENG-01 | Additive schema 0002; frozen RC1 metadata for migration 0001 | Upgrade tests must begin from the actual RC1 shape. Downgrade remains restricted to explicitly disposable databases; production rollback uses verified backups and reconciliation. |
+| ENG-01 | Additive schema 0002; frozen RC1 metadata for migration 0001 | Upgrade tests begin from the actual RC1 shape, preserving pending journals and backfilling quarantined workflow state from existing manifests without filesystem access. Restored manifests remain active. Downgrade stays restricted to explicitly disposable databases; production rollback uses verified backups and reconciliation. |
 | ENG-02 | Materialized searchable probe columns and PostgreSQL array indexes | Filters and counts operate across the whole catalogue. Unknown inspection stays distinct from a proven empty stream list. Byte size uses bounded integer parsing. |
 | ENG-03 | Statement-triggered catalogue generation invalidates API aggregation caches | Worker and API processes observe the same durable invalidation; pagination never affects analytics. |
 | ENG-04 | Scan outcome audit records commit with asset updates | Restart can reconstruct counts without probing unchanged files again. Missing classification requires complete enumeration and a final mount recheck. |

@@ -22,8 +22,8 @@ Subtitle candidates carry timing, FPS/duration, encoding, edition, completeness 
 | Browser, rebuilt four-container synthetic stack | **2 passed**; seven screens, responsive sidebar, pagination/filter/card selection, compact deletion preview, hierarchy/token persistence and zero filesystem changes on policy save; desktop/mobile screenshots visually reviewed |
 | Real Jellyfin 10.10.7, pinned isolated container | **PASS**: two films, four edition sources, one current BG subtitle per source, zero discovered history tracks; exact-path application adapter recognition verified |
 | OpenAPI and repository hygiene | OpenAPI regenerated; `git diff --check` passed; historical RC1 release evidence and immutable artifacts preserved |
-| Hosted CI | **PASS**, [run 41521447792](https://github.com/vesovasilev-vimag/media-manager/actions/runs/41521447792), source `80dce4f7d6d0efe1e90518da011ff35f29e11f22`: backend, frontend and browser jobs all successful |
-| Hosted security | **PASS**, [run 41521447244](https://github.com/vesovasilev-vimag/media-manager/actions/runs/41521447244), same source: pip/npm audits, Bandit, Gitleaks and both Trivy container scans, with no HIGH/CRITICAL container findings permitted |
+| Hosted CI | Verified reference: **PASS**, [run 41521447792](https://github.com/vesovasilev-vimag/media-manager/actions/runs/41521447792), source `80dce4f7d6d0efe1e90518da011ff35f29e11f22`: backend, frontend and browser jobs all successful. Latest head results are recorded in [PR checks](https://github.com/vesovasilev-vimag/media-manager/pull/4/checks). |
+| Hosted security | Verified reference: **PASS**, [run 41521447244](https://github.com/vesovasilev-vimag/media-manager/actions/runs/41521447244), same source: pip/npm audits, Bandit, Gitleaks and both Trivy container scans, with no HIGH/CRITICAL container findings permitted. Latest head uses the same required checks. |
 
 [Traceability](traceability.md) and [machine-readable executed evidence](automated-evidence.json) identify exact test references and SHA-256 source fingerprints. Hosted workflow artifacts retain JUnit, isolated Jellyfin JSON and browser screenshots. T-25/BG and T-42/deletion are explicitly superseded by approved v1.1 decisions; original RC1 reports are unchanged.
 
@@ -34,7 +34,8 @@ CI artifacts: [backend-evidence](https://github.com/vesovasilev-vimag/media-mana
 - Baseline: `645bebf85fabf05f8b33ce91fd0fbeef721679e3`.
 - Published implementation checkpoint: `2b6aaa9d0f79dd07dd71fb5bffe036536c79727a`.
 - Verified follow-up: `80dce4f7d6d0efe1e90518da011ff35f29e11f22`, tree `b2b6bd3ec116f89655589758ef1b542b663f4442`; hardens crash recovery, per-file restore, sidecar/dependency proof, identity/subtitle concurrency, browser coverage and versioned evidence.
-- The final documentation-only handoff commit records these results without changing the verified application, migration, tests, OpenAPI or workflow files. Its identity is available in the PR commit list; the source commit above is the reproducible verification reference.
+- Documentation handoff: `b551a5805f301a8c65b09821b6be661d02bb9215`.
+- Final upgrade compatibility correction backfills existing RC1 `QUARANTINED` manifest state into the new asset workflow column; restored assets remain active and all original restore evidence survives. The expanded migration regression and complete **94-test backend suite passed again**. Updated committed evidence fingerprints this final migration/test source. No application, frontend or workflow behavior changes in this correction; the final commit identity and hosted result are in the PR commit/check lists.
 
 The connected repository-owner GitHub account publishes the feature branch. A separate local CLI account lacks push permission; connector-created commits are verified against the exact local Git tree, and local recovery commits are retained. No RC1 tag or published image is altered.
 

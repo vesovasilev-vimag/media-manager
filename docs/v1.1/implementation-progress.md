@@ -17,6 +17,8 @@ Published source `80dce4f7d6d0efe1e90518da011ff35f29e11f22` passed [CI](https://
 
 OpenAPI, migration/backup/recovery fixtures, versioned traceability and operations instructions are complete. [Executed evidence](automated-evidence.json) fingerprints the reviewed source and records all 60 historical T/IT identifiers, with the approved BG/delete supersessions explicitly identified. No tag, image publication or deployment is part of this task.
 
+Final compatibility review added migration-only backfill from existing RC1 quarantine manifests, preserving restored/active distinctions and restore evidence. The expanded migration fixture and full 94-test backend suite passed again; final head CI/security are visible under PR #4 checks. No runtime/production migration was performed.
+
 ## Safety boundary
 
 Only local synthetic containers/volumes are used. Production NAS, torrents and settings have not been accessed or changed. Production Compose write/intake defaults remain false. Published RC1 tags/images are not modified. Missing provider credentials produce explicit unavailable/review states, not simulated production success.
