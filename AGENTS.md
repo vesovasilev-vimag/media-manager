@@ -1,5 +1,8 @@
 # Codex execution contract — ViMag Media Manager
 
+> **Version routing note (2026-11-02):** This AGENTS.md remains the historical RC1 coding contract for v1.0. A **separately authorized** v1.1 coding task must use the versioned [docs/v1.1/README.md](docs/v1.1/README.md), [product-scope.md](docs/v1.1/product-scope.md), [engineering-contract.md](docs/v1.1/engineering-contract.md), [decisions.md](docs/v1.1/decisions.md) and committed [wireframes/v1.1](wireframes/v1.1/) as the owner-approved superseding product requirements while retaining unaffected RC1 safety invariants. This note does **not** authorize development, production writes, deployment, or republishing RC1.
+
+
 This file is the repository-level instruction for any coding agent working toward **Release Candidate 1 (RC1)**. Read it **before making changes** and read the referenced documents completely.
 
 ## Mission: one uninterrupted execution to RC1
