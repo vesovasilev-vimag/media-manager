@@ -1,5 +1,8 @@
 # ViMag Media Manager
 
+> **v1.1 documentation baseline (2026-11-02):** The approved next-version Library Maintenance scope is in [docs/v1.1/README.md](docs/v1.1/README.md), with [product scope](docs/v1.1/product-scope.md), [engineering contract](docs/v1.1/engineering-contract.md), [decisions](docs/v1.1/decisions.md) and interactive [wireframes](wireframes/v1.1/). This is a documentation-only update; no v1.1 implementation, release or production write authorization is implied.
+
+
 Self-hosted media imports for qBittorrent and Jellyfin: Vue 3, FastAPI, a separate Python/ffprobe Worker and PostgreSQL. Four runtime containers and two custom images, with Bulgarian-first, edition-aware organization, guarded torrent moves, hardlinks, sidecars, subtitles and reversible quarantine.
 
 **RC1 implementation is on `codex/rc1`. See the [release report](docs/rc1-release-report.md) for actual publication, deployment and gate status. Local builds and synthetic tests are separate from production verification.**
