@@ -35,6 +35,8 @@ interface FileRecord {
     error_code?: string;
     files?: { source: string; target?: string; size: number }[];
     warnings?: string[];
+    preserved_sidecars?: string[];
+    sidecar_proposals?: { target: string; kind: string }[];
   };
 }
 interface Maintenance {
@@ -88,8 +90,46 @@ const action = ref(""),
   confirmed = ref(false),
   history = ref(false);
 const quarantine = ref<
-  { id: string; state: string; data: { source: string } }[]
+  { id: string; state: string; data: { source: string; bulk?: boolean } }[]
 >([]);
+const restoreSelection = ref<string[]>([]),
+  restoreJob = ref<{
+    id: string;
+    state: string;
+    data: { error_code?: string };
+    maintenance_files?: {
+      id: string;
+      state: string;
+      data: { title?: string; error_code?: string };
+    }[];
+  }>();
+async function refreshHistory() {
+  quarantine.value = (
+    await api<{ items: typeof quarantine.value }>("/library/quarantine")
+  ).items;
+  if (restoreJob.value)
+    restoreJob.value = await api(`/jobs/${restoreJob.value.id}`);
+}
+async function restoreSelected() {
+  await attempt(async () => {
+    const result = await api<{ job_id: string }>(
+      "/library/quarantines/restores",
+      "POST",
+      { manifest_ids: restoreSelection.value, confirmed: true },
+    );
+    restoreJob.value = await api(`/jobs/${result.job_id}`);
+    restoreSelection.value = [];
+  });
+}
+async function retryRestore() {
+  await attempt(async () => {
+    await api(
+      `/library/quarantine/restores/${restoreJob.value!.id}/retry`,
+      "POST",
+    );
+    await refreshHistory();
+  });
+}
 const subtitleAsset = ref<Media>(),
   subtitleVersions = ref<
     {
@@ -102,6 +142,20 @@ const subtitleContent = ref(""),
   subtitleProvider = ref("manual"),
   subtitleRelease = ref("");
 const identityAsset = ref<Media>();
+const identityCandidates = ref<
+  { id: string; title: string; year: number; media_type: string }[]
+>([]);
+function chooseIdentityCandidate(
+  candidate: (typeof identityCandidates.value)[number],
+) {
+  identityForm.value = {
+    ...identityForm.value,
+    title: candidate.title,
+    year: candidate.year,
+    media_type: candidate.media_type,
+    provider_id: candidate.id,
+  };
+}
 const identityForm = ref({
   title: "",
   year: "" as number | "",
@@ -128,6 +182,14 @@ function editIdentity(row: Media) {
     artist: i?.artist ?? "",
     collection_override: String(i?.collection_override ?? ""),
   };
+  identityCandidates.value = [];
+  void attempt(async () => {
+    identityCandidates.value = (
+      await api<{ items: typeof identityCandidates.value }>(
+        `/library/assets/${row.id}/identity-candidates`,
+      )
+    ).items;
+  });
 }
 async function saveIdentity() {
   await attempt(async () => {
@@ -234,10 +296,11 @@ async function load() {
   }
 }
 async function aggregate() {
-  const result = await api<{ categories: typeof analytics.value }>(
+  const result = await api<{ categories: typeof analytics.value; last_scan?: NonNullable<typeof scan.value>[] }>(
     "/library/analytics",
   );
   analytics.value = result.categories;
+  if(result.last_scan?.length)scan.value=result.last_scan[0];
 }
 function toggle(id: string) {
   selected.value = selected.value.includes(id)
@@ -326,7 +389,11 @@ async function showHistory() {
 }
 async function restore(id: string) {
   await attempt(async () => {
-    await api(`/library/quarantine/${id}/restore`, "POST");
+    const result = await api<{ job_id: string }>(
+      `/library/quarantine/${id}/restore`,
+      "POST",
+    );
+    restoreJob.value = await api(`/jobs/${result.job_id}`);
     await load();
     await aggregate();
   });
@@ -397,6 +464,7 @@ onMounted(() => {
     if (!busy.value)
       void attempt(async () => {
         if (operation.value) await updateOperation();
+        if (history.value) await refreshHistory();
         if (scan.value && ["QUEUED", "RUNNING"].includes(scan.value.state))
           scan.value = await api(`/library/scans/${scan.value.id}`);
         await load();
@@ -420,13 +488,20 @@ onUnmounted(() => {
         ⟳ Обследвай библиотеката</button
       ><button @click="showHistory">Карантина</button>
     </div>
-    <p v-if="error" role="alert" class="warning">{{ error }}</p>
+    <p
+      v-if="error && !action && !history && !subtitleAsset && !identityAsset"
+      role="alert"
+      class="warning"
+    >
+      {{ error }}
+    </p>
     <div v-if="scan" class="notice" role="status">
       Обследване · {{ scan.state }} · {{ scan.data.processed ?? 0 }} обработени
       · нови {{ scan.data.new ?? 0 }} · променени {{ scan.data.changed ?? 0 }} ·
       непроменени {{ scan.data.unchanged ?? 0 }} · липсващи
       {{ scan.data.missing ?? 0 }} · грешки {{ scan.data.failed ?? 0 }}
     </div>
+    <details v-if="scan && Array.isArray(scan.data.errors) && scan.data.errors.length"><summary>Грешки при обследването</summary><p v-for="(entry,i) in (scan.data.errors as {category?:string;path?:string;code:string}[])" :key="i">{{entry.category}} · {{entry.path}} · {{entry.code}}</p></details>
     <div class="analytics-grid">
       <section class="panel pad">
         <h2>Файлове по категории</h2>
@@ -762,6 +837,7 @@ onUnmounted(() => {
     </section>
     <CompactDialog
       v-if="action"
+      :error="error"
       :title="
         action === 'normalize'
           ? 'Нормализация'
@@ -795,7 +871,14 @@ onUnmounted(() => {
         </button></template
       >
       <template v-else
-        ><div class="row">
+        ><button
+          v-if="!operation.plan && operation.state !== 'Analyzing'"
+          :disabled="busy"
+          @click="control('retry')"
+        >
+          Повтори анализа
+        </button>
+        <div class="row">
           <span class="badge">{{ operation.state }}</span
           ><span>Политика v{{ operation.data.policy_revision }}</span
           ><span>{{ operation.data.phase }}</span>
@@ -835,6 +918,15 @@ onUnmounted(() => {
           <p v-if="f.data.error_code" class="warning">
             {{ f.data.error_code }}
           </p>
+          <small
+            v-for="proposal in f.data.sidecar_proposals"
+            :key="proposal.target"
+            >{{ proposal.kind }} → {{ proposal.target }}</small
+          >
+          <small v-if="f.data.preserved_sidecars?.length"
+            >Запазени shared / непотвърдени sidecars:
+            {{ f.data.preserved_sidecars.join(", ") }}</small
+          >
           <small v-if="f.data.warnings?.length">{{
             f.data.warnings.join(" · ")
           }}</small>
@@ -890,6 +982,7 @@ onUnmounted(() => {
     </CompactDialog>
     <CompactDialog
       v-if="history"
+      :error="error"
       title="Карантина · възстановяване"
       @close="history = false"
       ><p>
@@ -897,6 +990,14 @@ onUnmounted(() => {
         конфликтите изискват преглед.
       </p>
       <div v-for="q in quarantine" :key="q.id" class="plan-row">
+        <label class="check"
+          ><input
+            v-model="restoreSelection"
+            type="checkbox"
+            :value="q.id"
+            :disabled="q.state !== 'QUARANTINED' || !q.data.bulk"
+          />{{q.data.bulk?'Избери за възстановяване':'RC1 manifest · индивидуално възстановяване'}}</label
+        >
         <span>{{ q.data.source }} · {{ q.state }}</span
         ><button
           :disabled="q.state !== 'QUARANTINED' || busy"
@@ -904,10 +1005,32 @@ onUnmounted(() => {
         >
           Възстанови оригинала
         </button>
-      </div></CompactDialog
+      </div>
+      <button
+        :disabled="busy || !restoreSelection.length"
+        @click="restoreSelected"
+      >
+        Възстанови избраните към оригиналните пътища ({{
+          restoreSelection.length
+        }})
+      </button>
+      <section v-if="restoreJob">
+        <p>{{ restoreJob.state }} · {{ restoreJob.data.error_code }}</p>
+        <p v-for="f in restoreJob.maintenance_files" :key="f.id">
+          {{ f.data.title }} · {{ f.state }} · {{ f.data.error_code }}
+        </p>
+        <button
+          v-if="!['Queued', 'MaintenanceVerified'].includes(restoreJob.state)"
+          :disabled="busy"
+          @click="retryRestore"
+        >
+          Повтори неуспешното възстановяване
+        </button>
+      </section></CompactDialog
     >
     <CompactDialog
       v-if="subtitleAsset"
+      :error="error"
       title="BG субтитри · подобряване и версии"
       @close="subtitleAsset = undefined"
       ><p>
@@ -942,9 +1065,21 @@ onUnmounted(() => {
     >
     <CompactDialog
       v-if="identityAsset"
+      :error="error"
       title="Идентификация и колекция"
       @close="identityAsset = undefined"
       ><p>{{ identityAsset.relative_path }}</p>
+      <div v-if="identityCandidates.length">
+        <p>Кандидати от TMDb · изберете и потвърдете точната идентичност</p>
+        <button
+          v-for="candidate in identityCandidates"
+          :key="candidate.id"
+          @click="chooseIdentityCandidate(candidate)"
+        >
+          {{ candidate.title }} ({{ candidate.year }}) ·
+          {{ candidate.media_type }} · TMDb {{ candidate.id }}
+        </button>
+      </div>
       <label>Заглавие<input v-model="identityForm.title" /></label
       ><label
         >Година<input

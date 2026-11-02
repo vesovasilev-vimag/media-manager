@@ -4,13 +4,13 @@ import hashlib
 from pathlib import PurePosixPath
 from typing import Any
 
-from sqlalchemy import insert, select
+from sqlalchemy import insert, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from app import persistence as p
 from app.domain import GateError, digest
 from app.storage import atomic_sidecar, contained, sha256
-from app.subtitles import OpenSubtitles, evaluate
+from app.subtitles import OpenSubtitles, evaluate, media_evidence
 
 
 def decode_text(content: bytes, declared: str | None = None) -> tuple[bytes, str]:
@@ -199,11 +199,9 @@ def improve(
     if candidate:
         d = candidate["data"]
         content, encoding = decode_text(d["content"].encode(), "utf-8")
-        media = {
-            "fingerprint": asset["fingerprint"],
-            "edition": file["data"]["identity"].get("edition"),
-            "duration": float(asset["data"]["probe"]["format"]["duration"]),
-        }
+        media = media_evidence(
+            asset["data"], asset["fingerprint"], file["data"]["identity"].get("edition")
+        )
         result = evaluate(d, media, content, d.get("verification"))
         if result["status"] != "Synchronized":
             raise GateError("SUBTITLE_TIMING_NOT_VERIFIED")
@@ -222,6 +220,12 @@ def improve(
             resources,
             file["id"],
         )
+        with worker.db.transaction() as conn:
+            conn.execute(
+                update(p.evidence_tables["subtitle_candidates"])
+                .where(p.evidence_tables["subtitle_candidates"].c.id == candidate["id"])
+                .values(data={**d, "status": "Synchronized", "attached_plan": plan["id"]})
+            )
         return None
     # Provider searches are explicitly recorded; metadata/FPS equality alone never replaces a primary.
     if worker.cfg.secret(worker.cfg.subtitle_api_key_file).get_secret_value():

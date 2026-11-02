@@ -22,11 +22,15 @@ def worker_path(cfg: Any, qpath: str) -> Path:
     raise GateError("DEPENDENCY_PATH_UNMAPPED")
 
 
-def dependencies(worker: Any, asset: dict[str, Any]) -> list[dict[str, str]]:
+def dependencies(
+    worker: Any, asset: dict[str, Any], snapshot: list[Any] | None = None
+) -> list[dict[str, str]]:
     result = []
-    source = contained(worker.cfg.nas_root, "Library/" + asset["relative_path"])
+    source = contained(
+        worker.cfg.nas_root, asset.get("source") or "Library/" + asset["relative_path"]
+    )
     size = source.stat().st_size if source.is_file() else asset.get("file_size_bytes")
-    for torrent in worker.qbt.all():
+    for torrent in worker.qbt.all() if snapshot is None else snapshot:
         for file in torrent.files:
             qpath = torrent.save_path.rstrip("/") + "/" + file["name"]
             if qpath == "/library/" + asset["relative_path"]:

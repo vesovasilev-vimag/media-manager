@@ -40,7 +40,11 @@ def integer(value: Any) -> int | None:
 def normalized(path: str, data: dict[str, Any]) -> dict[str, Any]:
     probe = data.get("probe") or {}
     streams = probe.get("streams", [])
-    videos = [s for s in streams if s.get("codec_type") == "video"]
+    videos = [
+        s
+        for s in streams
+        if s.get("codec_type") == "video" and not s.get("disposition", {}).get("attached_pic")
+    ]
     width = max((integer(s.get("width")) or 0 for s in videos), default=0)
     height = max((integer(s.get("height")) or 0 for s in videos), default=0)
     quality = (

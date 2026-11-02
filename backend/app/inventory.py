@@ -222,11 +222,15 @@ def execute(worker: Any, task: dict[str, Any]) -> None:
                             summary[outcome] += 1
                             summary["processed"] += 1
                     seen.add(rel)
-                except (OSError, GateError):
+                except (OSError, GateError) as error:
                     successful = False
                     summary["failed"] += 1
                     summary["errors"].append(
-                        {"category": category, "code": "FILE_INSPECTION_FAILED"}
+                        {
+                            "category": category,
+                            "path": path.relative_to(library).as_posix(),
+                            "code": error.code if isinstance(error, GateError) else "FILE_IO_ERROR",
+                        }
                     )
                 progress("RUNNING")
             if successful:

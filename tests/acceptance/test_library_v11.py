@@ -4,6 +4,8 @@ from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
+import pytest
+
 from sqlalchemy import insert, select, update
 
 from app import catalogue, library_policy
@@ -395,3 +397,222 @@ def test_DELETE_fs_failure_keeps_catalogue_partial_reconcile(
     post(client, f"/library/deletions/{result['id']}/retry")
     drive(worker)
     assert db.one(select(p.assets))["workflow_state"] == "DELETED"
+
+
+def test_QUAR_bulk_restore_collision_continues_and_retry_reconciles(stack: Any) -> None:
+    worker, *_ = stack
+    db = worker.db
+    client = login(db)
+    a = asset(db)
+    b = asset(db, "Movies/Other/Second.mkv")
+    result = plan(stack, client, "quarantines", [a["id"], b["id"]])
+    assert approve(client, "quarantines", result).status_code == 202
+    drive(worker)
+    manifests = db.rows(select(p.quarantine))
+    original = db.config.nas_root / "Library" / a["relative_path"]
+    original.write_bytes(b"synthetic-external-collision")
+    response = post(
+        client,
+        "/library/quarantines/restores",
+        {"manifest_ids": [m["id"] for m in manifests], "confirmed": True},
+    )
+    assert response.status_code == 202
+    drive(worker)
+    jid = response.json()["job_id"]
+    assert db.one(select(p.jobs).where(p.jobs.c.id == jid))["state"] == "NeedsReview"
+    assert original.read_bytes() == b"synthetic-external-collision"
+    assert (db.config.nas_root / "Library" / b["relative_path"]).is_file()
+    original.unlink()
+    assert post(client, f"/library/quarantine/restores/{jid}/retry").status_code == 202
+    drive(worker)
+    assert all(m["state"] == "RESTORED" for m in db.rows(select(p.quarantine)))
+    assert original.is_file() and not stack[1].commands
+
+
+def test_DELETE_crash_after_unlink_before_verification_reconciles_once(
+    stack: Any, monkeypatch: Any
+) -> None:
+    from datetime import timedelta
+
+    worker, *_ = stack
+    db = worker.db
+    client = login(db)
+    a = asset(db)
+    result = plan(stack, client, "deletions", [a["id"]])
+    assert approve(client, "deletions", result).status_code == 202
+    original = Path.unlink
+    calls = []
+
+    def interrupted(path: Path, *args: Any, **kwargs: Any) -> None:
+        original(path, *args, **kwargs)
+        calls.append(path)
+        raise RuntimeError("Synthetic crash after exact unlink")
+
+    monkeypatch.setattr(Path, "unlink", interrupted)
+    with pytest.raises(RuntimeError):
+        worker.run_once()
+    monkeypatch.setattr(Path, "unlink", original)
+    with db.transaction() as conn:
+        conn.execute(
+            update(p.tasks)
+            .where(p.tasks.c.state == "RUNNING")
+            .values(lease_until=p.now() - timedelta(seconds=1))
+        )
+        conn.execute(update(p.leases).values(until=p.now() - timedelta(seconds=1)))
+    drive(worker)
+    assert len(calls) == 1 and len(db.rows(select(p.tombstones))) == 1
+    assert db.one(select(p.assets))["workflow_state"] == "DELETED"
+
+
+def test_V11_new_api_auth_csrf_and_separate_explicit_delete_intent(stack: Any) -> None:
+    from fastapi.testclient import TestClient
+    from app.api import create_app
+
+    worker, *_ = stack
+    db = worker.db
+    a = asset(db)
+    anonymous = TestClient(create_app(db.config, db), base_url="https://testserver")
+    assert anonymous.get("/api/v1/library/analytics").status_code == 401
+    assert (
+        anonymous.post(
+            "/api/v1/library/deletions/plans", json={"asset_ids": [a["id"]]}
+        ).status_code
+        == 401
+    )
+    client = login(db)
+    csrf = client.headers.pop("X-CSRF-Token")
+    assert (
+        post(client, "/library/deletions/plans", {"asset_ids": [a["id"]]}).status_code
+        == 403
+    )
+    assert not db.rows(select(p.jobs))
+    client.headers["X-CSRF-Token"] = csrf
+    result = plan(stack, client, "deletions", [a["id"]])
+    response = post(
+        client,
+        f"/jobs/{result['id']}/approve",
+        {
+            "plan_revision": 1,
+            "plan_sha256": result["plan"]["sha256"],
+            "reason": "Unrelated import approval cannot authorize delete",
+        },
+    )
+    assert response.status_code == 409
+    assert not db.rows(select(p.approvals))
+
+
+def test_BG_contradictory_signal_is_unknown(db: p.Database) -> None:
+    from app.domain import bg_state
+
+    analysis = {
+        "streams": [
+            {
+                "codec_type": "audio",
+                "tags": {"language": "bul", "title": "English commentary"},
+            }
+        ]
+    }
+    assert bg_state(analysis, "a" * 64, []) == "AUDIO_UNKNOWN"
+
+
+def test_NORMALIZE_crash_after_link_resumes_owned_alias_without_duplicate_move(
+    stack: Any, monkeypatch: Any
+) -> None:
+    import os
+    from datetime import timedelta
+
+    worker, *_ = stack
+    db = worker.db
+    a = asset(db)
+    client = login(db)
+    result = plan(stack, client, "normalizations", [a["id"]])
+    assert approve(client, "normalizations", result).status_code == 202
+    original = os.link
+    calls = []
+
+    def interrupted(source: Any, target: Any, *args: Any, **kwargs: Any) -> None:
+        original(source, target, *args, **kwargs)
+        calls.append(str(target))
+        raise RuntimeError("Synthetic crash after link before source unlink")
+
+    monkeypatch.setattr(os, "link", interrupted)
+    with pytest.raises(RuntimeError):
+        worker.run_once()
+    monkeypatch.setattr(os, "link", original)
+    with db.transaction() as conn:
+        conn.execute(
+            update(p.tasks)
+            .where(p.tasks.c.state == "RUNNING")
+            .values(lease_until=p.now() - timedelta(seconds=1))
+        )
+        conn.execute(update(p.leases).values(until=p.now() - timedelta(seconds=1)))
+    drive(worker)
+    assert len(calls) == 1
+    assert db.one(select(p.maintenance_files))["state"] == "CompletedWithWarnings"
+    assert not (db.config.nas_root / "Library" / a["relative_path"]).exists()
+
+
+def test_META_known_id_string_year_collection_cache_and_owned_nfo_policy_move(
+    stack: Any,
+) -> None:
+    worker, *_ = stack
+    db = worker.db
+    calls = []
+
+    class Metadata:
+        def details(self, provider_id: str, media_type: str) -> dict[str, Any]:
+            calls.append(provider_id)
+            return {
+                "title": "Fixture",
+                "year": 2026,
+                "imdb_id": "tt-synthetic",
+                "collection_id": "synthetic-collection",
+                "collection_name": "Synthetic Collection",
+            }
+
+    worker.tmdb = Metadata()
+    a = asset(
+        db,
+        data={
+            "identity": {
+                "title": "Fixture",
+                "year": "2026",
+                "media_type": "movie",
+                "provider_id": "1",
+                "confirmed": False,
+                "edition": "Theatrical",
+            }
+        },
+    )
+    client = login(db)
+    result = plan(stack, client, "normalizations", [a["id"]])
+    assert result["counts"] == {"Planned": 1}
+    assert "/Synthetic Collection/" in result["files"][0]["data"]["target"]
+    assert approve(client, "normalizations", result).status_code == 202
+    drive(worker)
+    policy = library_policy.defaults()
+    policy["categories"]["movies"]["root"] = "Films"
+    assert (
+        post(
+            client, "/library/policies", {"expected_revision": 0, "policy": policy}
+        ).status_code
+        == 201
+    )
+    result = plan(stack, client, "normalizations", [a["id"]])
+    assert result["counts"] == {"Planned": 1}
+    assert approve(client, "normalizations", result).status_code == 202
+    drive(worker)
+    assert calls == ["1"]
+    updated = db.one(select(p.assets))
+    assert (
+        updated["relative_path"].startswith("Films/")
+        and updated["category"] == "movies"
+    )
+    assert (
+        (db.config.nas_root / "Library" / updated["relative_path"])
+        .parent.joinpath("movie.nfo")
+        .is_file()
+    )
+    post(client, "/library/scans", {"category": "movies"})
+    drive(worker)
+    assert db.one(select(p.assets))["availability"] == "AVAILABLE"

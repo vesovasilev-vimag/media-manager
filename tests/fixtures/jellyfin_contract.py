@@ -5,6 +5,7 @@ import secrets
 import subprocess
 import sys
 import time
+import tempfile
 from pathlib import Path
 
 import httpx
@@ -145,6 +146,42 @@ def verify() -> None:
             )
             assert subs[0].get("Language") in {"bg", "bul"}
             assert "ver-" not in subs[0].get("Path", "")
+            assert subs[0].get("Path") == str(
+                Path(source["Path"]).with_suffix(".bg.srt")
+            )
+        from app.adapters import Jellyfin
+        from app.settings import Settings
+
+        with tempfile.TemporaryDirectory(
+            prefix="vimag-jellyfin-contract-"
+        ) as directory:
+            key = Path(directory) / "session-key"
+            key.write_text(client.headers["X-Emby-Token"])
+            adapter = Jellyfin(
+                Settings(
+                    environment="test",
+                    jellyfin_url="http://jellyfin:8096",
+                    jellyfin_api_key_file=key,
+                )
+            )
+            for item in media:
+                for source in item["MediaSources"]:
+                    assert (
+                        adapter.recognized(
+                            {
+                                "title": item["Name"],
+                                "year": 2026,
+                                "media_type": "movie",
+                                "provider_id": None,
+                                "jellyfin_path": source["Path"],
+                                "subtitle": "Synchronized",
+                                "subtitle_path": str(
+                                    Path(source["Path"]).with_suffix(".bg.srt")
+                                ),
+                            }
+                        )
+                        is not None
+                    )
         result = {
             "result": "PASS",
             "server_version": "10.10.7",
@@ -153,6 +190,7 @@ def verify() -> None:
             "bg_primary_per_source": 1,
             "archived_tracks_discovered": 0,
             "production_access": False,
+            "adapter_recognition_verified": True,
         }
         Path("/results").mkdir(exist_ok=True)
         Path("/results/jellyfin-v11.json").write_text(json.dumps(result, indent=2))

@@ -145,6 +145,8 @@ class Worker:
             proof.get(g) for g in ["G-01", "G-02", "G-03", "G-04", "G-05", "G-DB-01"]
         ):
             raise GateError("PRODUCTION_CUTOVER_UNAUTHORIZED", "BlockedExternalDependency")
+        if torrent_id is None and proof.get("G-06") is not True:
+            raise GateError("MAINTENANCE_INVENTORY_UNVERIFIED", "BlockedExternalDependency")
 
     def fence(
         self, task: dict[str, Any], resources: list[str], torrent_id: str | None = None
@@ -1081,6 +1083,11 @@ class Worker:
 
                 restore(self, task)
                 done = True
+            elif task["kind"] == "BULK_RESTORE_GROUP":
+                from app.bulk import restore_group
+
+                restore_group(self, task)
+                done = True
             elif task["kind"] == "SUBTITLE_RESTORE":
                 from app.subtitle_history import restore
 
@@ -1106,8 +1113,13 @@ class Worker:
                 if candidate["data"].get("provider") != "OpenSubtitles" or not files:
                     raise GateError("SUBTITLE_CANDIDATE_UNAVAILABLE")
                 content = OpenSubtitles(self.cfg).download(int(files[0]["file_id"]))
+                from app.subtitle_history import decode_text
                 from app.subtitles import cues
 
+                content, encoding = decode_text(
+                    content,
+                    candidate["data"].get("attributes", {}).get("encoding", " ").strip().lower(),
+                )
                 cues(content)
                 with self.db.transaction() as conn:
                     conn.execute(
@@ -1117,6 +1129,7 @@ class Worker:
                             data={
                                 **candidate["data"],
                                 "content": content.decode("utf-8-sig"),
+                                "encoding": encoding,
                                 "status": "NeedsReview",
                             }
                         )

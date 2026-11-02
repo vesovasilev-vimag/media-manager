@@ -1,6 +1,8 @@
 """Subtitle matching and non-destructive timing proposals."""
 
+import math
 import re
+from fractions import Fraction
 from typing import Any
 
 from app.adapters import Remote
@@ -72,6 +74,26 @@ class OpenSubtitles(Remote):
 
 
 TIMING = re.compile(r"(\d{2}):(\d{2}):(\d{2}),(\d{3})\s*-->\s*(\d{2}):(\d{2}):(\d{2}),(\d{3})")
+
+
+def media_evidence(data: dict[str, Any], fingerprint: str, edition: str | None) -> dict[str, Any]:
+    probe = data.get("probe", {})
+    video: dict[str, Any] = next(
+        (s for s in probe.get("streams", []) if s.get("codec_type") == "video"), {}
+    )
+    try:
+        fps = float(Fraction(str(video.get("avg_frame_rate") or video.get("r_frame_rate") or "0")))
+        duration = float(probe["format"]["duration"])
+    except (ValueError, KeyError, ZeroDivisionError):
+        raise GateError("SUBTITLE_MEDIA_TIMING_UNKNOWN") from None
+    if not math.isfinite(duration) or duration <= 0:
+        raise GateError("SUBTITLE_MEDIA_TIMING_UNKNOWN")
+    return {
+        "fingerprint": fingerprint,
+        "edition": edition,
+        "duration": duration,
+        "fps": fps if fps > 0 else None,
+    }
 
 
 def cues(content: bytes) -> list[tuple[float, float]]:

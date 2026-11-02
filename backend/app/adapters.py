@@ -3,6 +3,7 @@
 import json
 import re
 import subprocess
+import time
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
@@ -30,6 +31,7 @@ class Remote:
         ):
             raise GateError("INVALID_SERVICE_URL")
         self.name = name
+        self.rate_limited_until = 0.0
         self.http = httpx.Client(
             base_url=base.rstrip("/") + "/",
             headers=headers,
@@ -40,13 +42,20 @@ class Remote:
         )
 
     def request(self, method: str, path: str, **kwargs: Any) -> httpx.Response:
+        if time.monotonic() < self.rate_limited_until:
+            raise GateError(self.name + "_RETRY_LATER", "FailedRecoverable")
         try:
             response = self.http.request(method, path.lstrip("/"), **kwargs)
         except httpx.HTTPError:
             raise GateError(self.name + "_UNAVAILABLE", "BlockedExternalDependency") from None
         if response.status_code in {401, 403}:
             raise GateError(self.name + "_AUTH_REQUIRED", "BlockedExternalDependency")
-        if response.status_code == 429 or response.status_code >= 500:
+        if response.status_code == 429:
+            retry_after = response.headers.get("Retry-After", "60")
+            delay = min(3600, max(1, int(retry_after))) if retry_after.isdecimal() else 60
+            self.rate_limited_until = time.monotonic() + delay
+            raise GateError(self.name + "_RETRY_LATER", "FailedRecoverable")
+        if response.status_code >= 500:
             raise GateError(self.name + "_RETRY_LATER", "FailedRecoverable")
         if not 200 <= response.status_code < 300:
             raise GateError(self.name + "_REQUEST_REJECTED", "NeedsReview")

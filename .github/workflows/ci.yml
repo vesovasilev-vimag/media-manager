@@ -28,8 +28,8 @@ jobs:
       - name: PostgreSQL, media, safety and acceptance tests
         run: |
           docker run --rm --network vimag-dev_default -v "$PWD/deploy/secrets:/workspace/deploy/secrets:ro" -v "$PWD/.test-artifacts:/results" vimag-tests
-          python3 deploy/scripts/record-evidence.py
-          cp docs/rc1-automated-evidence.json .test-artifacts/
+          python3 deploy/scripts/record-v11-evidence.py
+          cp docs/v1.1/automated-evidence.json .test-artifacts/v11-automated-evidence.json
       - name: Backend production image
         run: docker build -q -t vimag-backend-ci backend
       - name: Real Jellyfin collection, editions and subtitle discovery
@@ -84,6 +84,7 @@ jobs:
           docker compose -f deploy/compose.dev.yaml up -d --wait db
           docker compose -f deploy/compose.dev.yaml run --rm api python -m alembic upgrade head
           docker compose -f deploy/compose.dev.yaml up -d --wait
+          docker run --rm --user 0:0 --entrypoint python -e VIMAG_BROWSER_FIXTURES=original-synthetic-media-only -v vimag-dev_synthetic_nas:/nas-movies -v "$PWD/tests/fixtures/seed_browser.py:/seed_browser.py:ro" vimag-dev-worker /seed_browser.py
       - name: Browser acceptance at desktop and mobile
         working-directory: frontend
         run: |

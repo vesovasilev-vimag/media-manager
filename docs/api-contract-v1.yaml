@@ -1592,6 +1592,36 @@ paths:
         required: true
         schema:
           type: string
+  /api/v1/library/assets/{asset_id}/identity-candidates:
+    get:
+      summary: Identity Candidates
+      operationId: identity_candidates_api_v1_library_assets__asset_id__identity_candidates_get
+      parameters:
+      - name: asset_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Asset Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                title: Response Identity Candidates Api V1 Library Assets  Asset Id  Identity
+                  Candidates Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - session: []
   /api/v1/library/assets/{asset_id}/identity:
     post:
       summary: Identity
@@ -2253,6 +2283,98 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
       security:
       - session: []
+  /api/v1/library/quarantines/restores:
+    post:
+      summary: Bulk Restore
+      operationId: bulk_restore_api_v1_library_quarantines_restores_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RestoreScope'
+        required: true
+      responses:
+        '202':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                additionalProperties: true
+                type: object
+                title: Response Bulk Restore Api V1 Library Quarantines Restores Post
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - session: []
+      parameters:
+      - name: X-CSRF-Token
+        in: header
+        required: true
+        schema:
+          type: string
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 16
+          maxLength: 128
+      - name: Origin
+        in: header
+        required: true
+        schema:
+          type: string
+  /api/v1/library/quarantine/restores/{job_id}/retry:
+    post:
+      summary: Retry Restore
+      operationId: retry_restore_api_v1_library_quarantine_restores__job_id__retry_post
+      parameters:
+      - name: job_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Job Id
+      - name: X-CSRF-Token
+        in: header
+        required: true
+        schema:
+          type: string
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 16
+          maxLength: 128
+      - name: Origin
+        in: header
+        required: true
+        schema:
+          type: string
+      responses:
+        '202':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                title: Response Retry Restore Api V1 Library Quarantine Restores  Job
+                  Id  Retry Post
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - session: []
   /api/v1/library/assets/{asset_id}/subtitles/accept:
     post:
       summary: Accept Subtitle
@@ -2607,6 +2729,25 @@ components:
       - category
       - identity
       title: PolicyPreview
+    RestoreScope:
+      properties:
+        manifest_ids:
+          items:
+            type: string
+            format: uuid
+          type: array
+          maxItems: 10000
+          minItems: 1
+          title: Manifest Ids
+        confirmed:
+          type: boolean
+          title: Confirmed
+      additionalProperties: false
+      type: object
+      required:
+      - manifest_ids
+      - confirmed
+      title: RestoreScope
     Review:
       properties:
         expected_revision:

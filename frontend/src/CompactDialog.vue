@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref } from "vue";
-defineProps<{ title: string }>();
+defineProps<{ title: string; error?: string }>();
 const emit = defineEmits<{ close: [] }>();
 const panel = ref<HTMLElement>();
 let prior: HTMLElement | null = null;
@@ -49,6 +49,7 @@ onUnmounted(() => {
         <h2>{{ title }}</h2>
         <button aria-label="Затвори" @click="emit('close')">×</button>
       </div>
+      <p v-if="error" role="alert" class="warning">{{ error }}</p>
       <slot />
     </section>
   </div>

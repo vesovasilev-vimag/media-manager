@@ -175,3 +175,83 @@ def test_SUB_crash_after_primary_before_manifest_reconciles(
         select(p.subtitle_versions).order_by(p.subtitle_versions.c.generation.desc())
     )[0]
     assert len(latest["data"]["history"]) == 1
+
+
+def test_SUB_accepted_candidate_applies_in_one_normalization_and_filters_refresh(
+    stack: Any,
+) -> None:
+    worker = stack[0]
+    db = worker.db
+    a = asset(db)
+    client = login(db)
+    body = {
+        "asset_revision": a["revision"],
+        "fingerprint": a["fingerprint"],
+        "edition": "Theatrical",
+        "content": "1\n00:00:00,100 --> 00:00:01,000\nSynthetic accepted candidate\n",
+        "fps": 24,
+        "duration": 2,
+        "language": "bg",
+        "kind": "normal",
+        "complete": True,
+        "timing_confirmed": True,
+        "source_quality": "reviewed",
+        "provider": "synthetic",
+        "release": "fixture-cut",
+    }
+    assert (
+        post(client, f"/library/assets/{a['id']}/subtitles/accept", body).status_code
+        == 201
+    )
+    result = plan(stack, client, "normalizations", [a["id"]])
+    assert approve(client, "normalizations", result).status_code == 202
+    drive(worker)
+    assert (
+        db.one(select(p.evidence_tables["subtitle_candidates"]))["data"]["status"]
+        == "Synchronized"
+    )
+    assert (
+        client.get("/api/v1/library/assets?subtitle_language=bg").json()["total"] == 1
+    )
+    assert len(db.rows(select(p.subtitle_versions))) == 1
+    result = plan(stack, client, "normalizations", [a["id"]])
+    assert approve(client, "normalizations", result).status_code == 202
+    drive(worker)
+    assert len(db.rows(select(p.subtitle_versions))) == 1
+    assert (
+        db.one(
+            select(p.maintenance_files).where(
+                p.maintenance_files.c.job_id == result["id"]
+            )
+        )["state"]
+        == "NoChange"
+    )
+
+
+def test_SUB_unknown_primary_blocks_replacement_in_preview(stack: Any) -> None:
+    worker = stack[0]
+    db = worker.db
+    a = asset(db)
+    client = login(db)
+    path = (db.config.nas_root / "Library" / a["relative_path"]).with_suffix(".bg.srt")
+    path.write_text("Manual original")
+    body = {
+        "asset_revision": a["revision"],
+        "fingerprint": a["fingerprint"],
+        "edition": "Theatrical",
+        "content": "1\n00:00:00,100 --> 00:00:01,000\nNew candidate\n",
+        "duration": 2,
+        "complete": True,
+        "timing_confirmed": True,
+        "source_quality": "reviewed",
+        "provider": "synthetic",
+        "release": "fixture",
+    }
+    assert (
+        post(client, f"/library/assets/{a['id']}/subtitles/accept", body).status_code
+        == 201
+    )
+    result = plan(stack, client, "normalizations", [a["id"]])
+    assert result["counts"] == {"NeedsReview": 1}
+    assert result["files"][0]["data"]["error_code"] == "SUBTITLE_PRIMARY_NOT_OWNED"
+    assert path.read_text() == "Manual original"

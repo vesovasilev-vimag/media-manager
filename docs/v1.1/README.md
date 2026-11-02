@@ -1,6 +1,6 @@
 # ViMag Media Manager v1.1 — documentation baseline
 
-**Status:** owner-approved product requirements consolidated on 2026-11-02; engineering implementation NOT started.
+**Status:** owner-approved requirements consolidated on 2026-11-02; implementation separately authorized by the owner on 2026-11-02 on `codex/v1.1-library-maintenance`, [PR #4](https://github.com/vesovasilev-vimag/media-manager/pull/4). See [progress](implementation-progress.md), [engineering decisions](implementation-decisions.md), [traceability](traceability.md), and [operations/recovery](operations-and-recovery.md). No production release/deployment is authorized by this work.
 **Documentation version:** 1.1.0-spec.1. **Baseline:** existing `codex/rc1` source and published immutable `v1.0.0-rc.1` artifact.
 **Scope:** library management, maintenance and approved UI; preserve existing RC1 ingest/seeding/security behaviour unless explicitly modified below.
 
@@ -18,6 +18,8 @@
 For v1.1 work only: explicit owner decisions in v1.1 docs take precedence over conflicting v1.0 product decisions (notably BG language confirmation and specifically authorized physical delete). Unaffected v1.0 engineering safeguards remain in force. An approved mock/wireframe does not confer operational permission for writes.
 
 ## Workflow / repo sync checkpoint
+
+The documentation-only checkpoint below is historical. The owner's later implementation kickoff separately authorizes the feature branch above, while retaining the production safety boundary.
 
 This documentation branch is **documentation-only**, not a Codex implementation branch. Do not modify application source, deploy, toggle `VIMAG_WRITE_ENABLED`/`VIMAG_AUTOMATIC_INTAKE`, process existing torrents, or re-tag `v1.0.0-rc.1` as part of documentation sync. First verify repository links and file contents, review/merge docs as agreed, then separately prepare a short Codex kickoff referring to the repo paths and commit.
 

@@ -68,7 +68,16 @@ const username = ref(""),
 const collapsed = ref(
   localStorage.getItem("vimag-sidebar-collapsed") === "true",
 );
+const narrow = ref(window.innerWidth <= 900);
+function viewportChanged() {
+  narrow.value = window.innerWidth <= 900;
+  if (!narrow.value) sidebar.value = false;
+}
 function toggleSidebar() {
+  if (narrow.value) {
+    sidebar.value = !sidebar.value;
+    return;
+  }
   collapsed.value = !collapsed.value;
   localStorage.setItem("vimag-sidebar-collapsed", String(collapsed.value));
 }
@@ -457,6 +466,7 @@ async function saveSettings() {
   });
 }
 onMounted(async () => {
+  window.addEventListener("resize", viewportChanged);
   window.addEventListener("hashchange", handleHash);
   try {
     await api("/me");
@@ -472,6 +482,7 @@ onMounted(async () => {
   }, 5000);
 });
 onUnmounted(() => {
+  window.removeEventListener("resize", viewportChanged);
   window.removeEventListener("hashchange", handleHash);
   if (timer) clearInterval(timer);
 });
@@ -559,11 +570,8 @@ onUnmounted(() => {
           <button
             class="icon"
             aria-label="Прибери или разгъни навигацията"
-            :aria-expanded="!collapsed"
-            @click="
-              toggleSidebar();
-              sidebar = !sidebar;
-            "
+            :aria-expanded="narrow ? sidebar : !collapsed"
+            @click="toggleSidebar()"
           >
             <Menu :size="18" /></button
           ><span class="muted">Работно пространство</span><span>/</span

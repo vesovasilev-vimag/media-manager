@@ -755,8 +755,22 @@ ul {
   justify-content: center;
   padding-inline: 8px;
 }
-@media (max-width: 760px) {
+@media (max-width: 900px) {
   .app-shell.collapsed {
     grid-template-columns: minmax(0, 1fr);
+  }
+  .app-shell.collapsed .sidebar {
+    width: 242px;
+    padding: 26px 15px;
+  }
+  .app-shell.collapsed .sidebar .brand > span:last-child,
+  .app-shell.collapsed .sidebar > .eyebrow,
+  .app-shell.collapsed .sidebar nav button span,
+  .app-shell.collapsed .side-bottom {
+    display: revert;
+  }
+  .app-shell.collapsed .sidebar nav button {
+    justify-content: flex-start;
+    padding: 13px 12px;
   }
 }

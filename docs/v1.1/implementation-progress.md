@@ -8,15 +8,15 @@ Authorized by the owner's 2026-11-02 implementation kickoff. Base `645bebf85fabf
 - Implemented additive schema 0002; froze RC1's schema for reproducible 0001 upgrades. PostgreSQL catalogue filtering/counts, normalized probe fields, real-byte analytics and invalidation, scan intents and incremental inventory are implemented.
 - Implemented immutable organisation policies, live preview, collection hierarchy and manual metadata/collection correction; per-file bulk normalization, exact quarantine/delete manifests, separate approval, controls, audit, leases, recovery, tombstones, sidecar ownership and subtitle version history.
 - Implemented compact API-backed Library table/cards, server pagination/filtering, analytics, selection and operation dialogs; visual hierarchy/token editor; persistent sidebar collapse.
-- Last complete Linux suite: **85 passed, zero skipped**, including all retained RC1 tests and v1.1 fixtures. Ruff/mypy passed. Frontend: **8 tests passed**, lint/types/build passed at their latest checkpoints. Further checks follow ongoing edits; this is not final evidence.
+- Final local Linux suite: **94 passed, zero skipped**, including all retained RC1 tests and v1.1 fixtures. Ruff formatting/lint and mypy passed (21 application modules). Frontend: **8 tests passed**, lint/types/build passed. Rebuilt synthetic stack: **2 Playwright tests passed** at desktop/mobile, including API-backed pagination, compact deletion preview, policy/token persistence and sidebar behavior. Screenshots were visually reviewed.
 - Real isolated Jellyfin 10.10.7 test passed: two films under a collection folder, four edition sources, one active Bulgarian subtitle per source, zero discovered history tracks. Image digest is pinned in `tests/compose.jellyfin.yaml`; no host ports or production paths were used.
 
 ## Work remaining before final handoff
 
-1. Finish concurrency/recovery edge verification, v1.1 migration/backup evidence and browser interaction fixtures; rerun all checks on final source.
-2. Generate OpenAPI; complete v1.1 decisions, traceability, operator/recovery instructions and implementation report.
-3. Build local synthetic images, run desktop/mobile Playwright and security checks; fix failures. Push recoverable commits, open PR against `codex/rc1`, inspect and fix hosted CI/security results.
-4. Report exact final source/check identities and any unresolved external prerequisites. No tag, image publication or deployment is part of this task.
+1. Publish the verified follow-up and inspect hosted CI/security on PR #4; fix any failures.
+2. Record hosted run links and final commit identities in the implementation report, update the PR and mark it ready for review.
+
+OpenAPI, migration/backup/recovery fixtures, versioned traceability and operations instructions are complete. [Executed evidence](automated-evidence.json) fingerprints the reviewed source and records all 60 historical T/IT identifiers, with the approved BG/delete supersessions explicitly identified. No tag, image publication or deployment is part of this task.
 
 ## Safety boundary
 

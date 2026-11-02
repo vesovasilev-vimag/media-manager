@@ -431,6 +431,9 @@ def create_app(config: Settings | None = None, database: p.Database | None = Non
             select(p.audit).where(p.audit.c.target == jid).order_by(p.audit.c.created_at)
         )
         result["steps"] = STEPS
+        result["maintenance_files"] = db.rows(
+            select(p.maintenance_files).where(p.maintenance_files.c.job_id == jid)
+        )
         return result
 
     @app.get("/api/v1/jobs/{job_id}/plan", dependencies=[Depends(admin)])
@@ -939,7 +942,7 @@ def create_app(config: Settings | None = None, database: p.Database | None = Non
                     insert(p.tasks).values(id=task_id, job_id=plan["job_id"], kind="QUARANTINE")
                 )
                 db.event(conn, session["user_id"], "QUARANTINE_APPROVED", plan["job_id"])
-                return {"operation_id": task_id}
+                return {"operation_id": task_id, "job_id": plan["job_id"]}
 
             return command(conn, request, session["user_id"], body.model_dump(mode="json"), apply)
 
@@ -999,7 +1002,7 @@ def create_app(config: Settings | None = None, database: p.Database | None = Non
                     )
                 )
                 db.event(conn, session["user_id"], "RESTORE_APPROVED", job_id)
-                return {"operation_id": task_id}
+                return {"operation_id": task_id, "job_id": job_id}
 
             return command(
                 conn, request, session["user_id"], {"manifest_id": str(manifest_id)}, apply

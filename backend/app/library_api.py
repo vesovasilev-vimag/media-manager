@@ -65,6 +65,12 @@ class SubtitleAccept(BaseModel):
     release: str = Field(min_length=1, max_length=200)
 
 
+class RestoreScope(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    manifest_ids: list[UUID] = Field(min_length=1, max_length=10000)
+    confirmed: bool
+
+
 def register(app: FastAPI, db: p.Database, admin: Any, command: Any) -> None:
     @app.get("/api/v1/library/analytics", dependencies=[Depends(admin)])
     def analytics() -> dict[str, Any]:
@@ -155,6 +161,16 @@ def register(app: FastAPI, db: p.Database, admin: Any, command: Any) -> None:
             body.policy, body.category, body.identity, body.data, body.path
         )
 
+    @app.get("/api/v1/library/assets/{asset_id}/identity-candidates", dependencies=[Depends(admin)])
+    def identity_candidates(asset_id: UUID) -> dict[str, Any]:
+        rows = db.rows(
+            select(p.evidence_tables["identity_candidates"])
+            .where(p.evidence_tables["identity_candidates"].c.asset_id == str(asset_id))
+            .order_by(p.evidence_tables["identity_candidates"].c.created_at.desc())
+            .limit(1)
+        )
+        return {"items": rows[0]["data"].get("candidates", []) if rows else []}
+
     @app.post("/api/v1/library/assets/{asset_id}/identity")
     def identity(
         asset_id: UUID,
@@ -239,6 +255,15 @@ def register(app: FastAPI, db: p.Database, admin: Any, command: Any) -> None:
                 def apply() -> dict[str, Any]:
                     jid, tid = p.uid(), p.uid()
                     scope = body.model_dump(mode="json")
+                    if body.asset_ids:
+                        found = conn.execute(
+                            select(p.assets.c.id).where(
+                                p.assets.c.id.in_([str(v) for v in body.asset_ids]),
+                                p.assets.c.workflow_state == "ACTIVE",
+                            )
+                        ).all()
+                        if len(found) != len(set(body.asset_ids)):
+                            raise GateError("SCOPE_ASSET_UNAVAILABLE")
                     policy = (
                         conn.execute(
                             select(p.policies).order_by(p.policies.c.revision.desc()).limit(1)
@@ -440,8 +465,29 @@ def register(app: FastAPI, db: p.Database, admin: Any, command: Any) -> None:
                         .mappings()
                         .one_or_none()
                     )
-                    if not job or job["revision"] == 0:
+                    if not job:
                         raise GateError("PLAN_NOT_APPROVED")
+                    if job["revision"] == 0:
+                        if action not in {"retry", "resume"}:
+                            raise GateError("ANALYSIS_NOT_APPROVED")
+                        conn.execute(
+                            update(p.tasks)
+                            .where(
+                                p.tasks.c.job_id == str(job_id),
+                                p.tasks.c.kind == "BULK_ANALYZE",
+                                p.tasks.c.state != "RUNNING",
+                            )
+                            .values(state="RECONCILING", run_after=p.now())
+                        )
+                        conn.execute(
+                            update(p.jobs)
+                            .where(p.jobs.c.id == str(job_id))
+                            .values(state="Analyzing")
+                        )
+                        db.event(
+                            conn, session["user_id"], "MAINTENANCE_ANALYSIS_RETRY", str(job_id)
+                        )
+                        return {"job_id": str(job_id), "requested": "retry-analysis"}
                     approved = conn.execute(
                         select(p.approvals.c.id)
                         .join(p.plans)
@@ -496,6 +542,117 @@ def register(app: FastAPI, db: p.Database, admin: Any, command: Any) -> None:
     add_operation("quarantines", "QUARANTINE")
     add_operation("deletions", "DELETE")
 
+    @app.post("/api/v1/library/quarantines/restores", status_code=202)
+    def bulk_restore(
+        body: RestoreScope, request: Request, session: dict[str, Any] = Depends(admin)
+    ) -> dict[str, Any]:
+        if not body.confirmed:
+            raise GateError("RESTORE_CONFIRMATION_REQUIRED")
+        with db.transaction() as conn:
+
+            def apply() -> dict[str, Any]:
+                manifests = (
+                    conn.execute(
+                        select(p.quarantine).where(
+                            p.quarantine.c.id.in_([str(v) for v in body.manifest_ids]),
+                            p.quarantine.c.state == "QUARANTINED",
+                        )
+                    )
+                    .mappings()
+                    .all()
+                )
+                if len(manifests) != len(set(body.manifest_ids)):
+                    raise GateError("RESTORE_MANIFEST_STALE")
+                jid, pid, tid = p.uid(), p.uid(), p.uid()
+                entries = []
+                conn.execute(
+                    insert(p.jobs).values(id=jid, kind="BULK_RESTORE", state="Queued", revision=1)
+                )
+                for manifest in manifests:
+                    if not manifest["data"].get("bulk"):
+                        raise GateError("LEGACY_MANIFEST_REQUIRES_SINGLE_RESTORE")
+                    files = [
+                        {**e, "source": e["target"], "target": e["source"]}
+                        for e in manifest["data"]["files"]
+                    ]
+                    data = {
+                        "manifest_id": manifest["id"],
+                        "files": files,
+                        "title": manifest["data"].get("title"),
+                        "source": manifest["data"]["target"],
+                        "target": manifest["data"]["source"],
+                    }
+                    entries.append({"asset_id": manifest["asset_id"], **data})
+                    conn.execute(
+                        insert(p.maintenance_files).values(
+                            job_id=jid, asset_id=manifest["asset_id"], state="Planned", data=data
+                        )
+                    )
+                data = {"action": "RESTORE", "entries": entries}
+                conn.execute(
+                    insert(p.plans).values(
+                        id=pid, job_id=jid, revision=1, sha256=digest(data), data=data
+                    )
+                )
+                conn.execute(
+                    insert(p.approvals).values(
+                        plan_id=pid,
+                        sha256=digest(data),
+                        actor=session["user_id"],
+                        action="APPROVE_RESTORE",
+                    )
+                )
+                conn.execute(insert(p.tasks).values(id=tid, job_id=jid, kind="BULK_RESTORE_GROUP"))
+                db.event(conn, session["user_id"], "BULK_RESTORE_APPROVED", jid)
+                return {"job_id": jid, "operation_id": tid}
+
+            return command(conn, request, session["user_id"], body.model_dump(mode="json"), apply)
+
+    @app.post("/api/v1/library/quarantine/restores/{job_id}/retry", status_code=202)
+    def retry_restore(
+        job_id: UUID, request: Request, session: dict[str, Any] = Depends(admin)
+    ) -> dict[str, Any]:
+        with db.transaction() as conn:
+
+            def apply() -> dict[str, Any]:
+                job = (
+                    conn.execute(select(p.jobs).where(p.jobs.c.id == str(job_id)).with_for_update())
+                    .mappings()
+                    .one_or_none()
+                )
+                if not job or job["kind"] not in {"RESTORE", "BULK_RESTORE"}:
+                    raise GateError("RESTORE_JOB_REQUIRED")
+                active = conn.execute(
+                    select(p.tasks.c.id).where(
+                        p.tasks.c.job_id == str(job_id),
+                        p.tasks.c.state.in_(["RUNNING", "QUEUED", "RECONCILING", "RETRYABLE"]),
+                    )
+                ).first()
+                if active:
+                    raise GateError("RESTORE_ALREADY_RUNNING")
+                conn.execute(
+                    update(p.tasks)
+                    .where(p.tasks.c.job_id == str(job_id))
+                    .values(state="RECONCILING", run_after=p.now())
+                )
+                conn.execute(
+                    update(p.maintenance_files)
+                    .where(
+                        p.maintenance_files.c.job_id == str(job_id),
+                        p.maintenance_files.c.state != "Completed",
+                    )
+                    .values(state="Planned")
+                )
+                conn.execute(
+                    update(p.jobs)
+                    .where(p.jobs.c.id == str(job_id))
+                    .values(state="Queued", paused=False)
+                )
+                db.event(conn, session["user_id"], "RESTORE_RETRY_REQUESTED", str(job_id))
+                return {"job_id": str(job_id)}
+
+            return command(conn, request, session["user_id"], {}, apply)
+
     @app.post("/api/v1/library/assets/{asset_id}/subtitles/accept", status_code=201)
     def accept_subtitle(
         asset_id: UUID,
@@ -503,16 +660,14 @@ def register(app: FastAPI, db: p.Database, admin: Any, command: Any) -> None:
         request: Request,
         session: dict[str, Any] = Depends(admin),
     ) -> dict[str, Any]:
-        from app.subtitles import evaluate
+        from app.subtitles import evaluate, media_evidence
 
         asset = db.one(select(p.assets).where(p.assets.c.id == str(asset_id)))
         if asset["revision"] != body.asset_revision or asset["fingerprint"] != body.fingerprint:
             raise GateError("SUBTITLE_VIDEO_CHANGED")
-        media = {
-            "fingerprint": asset["fingerprint"],
-            "edition": asset["data"].get("identity", {}).get("edition"),
-            "duration": float(asset["data"]["probe"]["format"]["duration"]),
-        }
+        media = media_evidence(
+            asset["data"], asset["fingerprint"], asset["data"].get("identity", {}).get("edition")
+        )
         verification = {
             "actor": session["user_id"],
             "time": p.now().isoformat(),
@@ -534,6 +689,19 @@ def register(app: FastAPI, db: p.Database, admin: Any, command: Any) -> None:
 
             def apply() -> dict[str, Any]:
                 cid = p.uid()
+                current = (
+                    conn.execute(
+                        select(p.assets).where(p.assets.c.id == str(asset_id)).with_for_update()
+                    )
+                    .mappings()
+                    .one_or_none()
+                )
+                if (
+                    not current
+                    or current["revision"] != body.asset_revision
+                    or current["fingerprint"] != body.fingerprint
+                ):
+                    raise GateError("SUBTITLE_VIDEO_CHANGED")
                 conn.execute(
                     insert(p.evidence_tables["subtitle_candidates"]).values(
                         id=cid,
