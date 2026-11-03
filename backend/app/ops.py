@@ -157,7 +157,7 @@ def authorize_production(db: p.Database, source: Path) -> None:
     if not isinstance(proof, dict):
         raise GateError("INVALID_AUTHORIZATION_FILE")
     validate_production_authorization(proof)
-    checked = {key: True for key in PRODUCTION_GATE_KEYS}
+    checked: dict[str, Any] = {key: True for key in PRODUCTION_GATE_KEYS}
     checked.update(mode="production", authorized_by=proof["authorized_by"].strip())
     with db.transaction() as conn:
         revision = conn.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
