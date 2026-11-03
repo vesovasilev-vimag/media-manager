@@ -22,7 +22,6 @@ jobs:
           docker build -q -f tests/Dockerfile -t vimag-tests .
       - name: Formatting, lint and types
         run: |
-          docker run --rm vimag-tests ruff format --diff backend/app/ops.py
           docker run --rm vimag-tests ruff format --check backend/app tests
           docker run --rm vimag-tests ruff check backend/app tests
           docker run --rm -w /workspace/backend vimag-tests mypy --config-file pyproject.toml app
