@@ -209,6 +209,32 @@ def test_SCAN_incremental_missing_reappears_and_failed_scope(
     assert not qbt.commands
 
 
+def test_SCAN_does_not_contact_qbt_and_preserves_existing_dependencies(
+    stack: Any,
+) -> None:
+    worker, qbt, _, _ = stack
+    db = worker.db
+    previous = asset(db, data={"dependencies": ["existing-torrent-ref"]})
+    path = db.config.nas_root / "Library" / previous["relative_path"]
+    with db.transaction() as conn:
+        conn.execute(
+            update(p.assets)
+            .where(p.assets.c.id == previous["id"])
+            .values(mtime_ns=path.stat().st_mtime_ns, observed_size=path.stat().st_size)
+        )
+
+    def forbidden_qbt() -> Any:
+        raise AssertionError("Library scan must not query qBittorrent")
+
+    qbt.all = forbidden_qbt
+    client = login(db)
+    scan = post(client, "/library/scans", {"category": "movies"}).json()
+    drive(worker)
+    assert client.get("/api/v1/library/scans/" + scan["id"]).json()["state"] == "COMPLETED"
+    current = db.one(select(p.assets).where(p.assets.c.id == previous["id"]))
+    assert current["data"]["dependencies"] == ["existing-torrent-ref"]
+
+
 def test_SCAN_legacy_catalogue_bootstrap_reuses_historical_probe(
     stack: Any, monkeypatch: Any
 ) -> None:
