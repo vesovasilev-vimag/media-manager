@@ -21,6 +21,7 @@ jobs:
         env:
           HUB_USER: ${{ secrets.DOCKERHUB_USERNAME }}
           HUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -eu
           test "$GITHUB_REF" = refs/heads/codex/rc1
@@ -32,8 +33,6 @@ jobs:
           else
             grep -q '404' tag-error.txt || { echo 'BLOCKED: could not verify tag absence'; exit 1; }
           fi
-        env:
-          GH_TOKEN: ${{ github.token }}
       - name: Create immutable v1.1 release tag
         env: {GH_TOKEN: '${{ github.token }}'}
         run: gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" -f ref=refs/tags/v1.1.0-rc.1 -f sha="$GITHUB_SHA" > /dev/null
