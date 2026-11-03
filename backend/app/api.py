@@ -16,6 +16,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from app import persistence as p
 from app.domain import CATEGORIES, STEPS, GateError, digest, safe_note
+from app.ops import operational_status
 from app.settings import Settings
 
 HASHER = PasswordHasher(time_cost=3, memory_cost=65536, parallelism=4)
@@ -347,39 +348,13 @@ def create_app(config: Settings | None = None, database: p.Database | None = Non
         value = {**value, "heartbeat_age_seconds": age}
         if age is not None and age > max(120, cfg.poll_seconds * 3):
             value["state"] = "STALE"
-        authorization = db.rows(
-            select(p.settings_table).where(
-                p.settings_table.c.key == "operational_authorization"
-            )
-        )
         return {
             "database": revision == "0002",
             "schema": revision,
             "worker": value,
             "write_enabled": cfg.write_enabled,
             "automatic_intake": cfg.automatic_intake,
-            "production_authorized": bool(
-                (authorization[0]["value"].get("mode") == "production")
-                and authorization[0]["value"].get("authorized_by")
-                and all(
-                    authorization[0]["value"].get(field) is True
-                    for field in (
-                        "backup_verified",
-                        "database_restore_verified",
-                        "mounts_verified",
-                        "jellyfin_token_rotated",
-                        "legacy_baseline_verified",
-                        "recovery_fixtures_verified",
-                        "G-01",
-                        "G-02",
-                        "G-03",
-                        "G-04",
-                        "G-05",
-                        "G-DB-01",
-                        "G-06",
-                    )
-                )
-            ) if authorization else False,
+            "production_authorized": operational_status(db)["production_authorized"],
         }
 
     @app.get("/api/v1/dashboard", dependencies=[Depends(admin)])
