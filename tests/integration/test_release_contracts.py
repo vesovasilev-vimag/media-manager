@@ -34,10 +34,13 @@ def test_production_four_containers_worker_only_single_nas_bind() -> None:
     assert environment["VIMAG_AUTOMATIC_INTAKE"].startswith(
         "${VIMAG_AUTOMATIC_INTAKE:?"
     )
-    assert config["services"]["api"]["environment"]["VIMAG_WRITE_ENABLED"] == environment["VIMAG_WRITE_ENABLED"]
+    assert (
+        config["services"]["api"]["environment"]["VIMAG_WRITE_ENABLED"]
+        == environment["VIMAG_WRITE_ENABLED"]
+    )
     example = (ROOT / "deploy/env.example").read_text()
-    assert "\\nVIMAG_WRITE_ENABLED=false\\n" in "\\n" + example
-    assert "\\nVIMAG_AUTOMATIC_INTAKE=false\\n" in "\\n" + example
+    assert "VIMAG_WRITE_ENABLED=false" in example.splitlines()
+    assert "VIMAG_AUTOMATIC_INTAKE=false" in example.splitlines()
     assert config["networks"]["backend"]["internal"] is True
     assert (
         config["services"]["db"]["environment"]["POSTGRES_USER"]
