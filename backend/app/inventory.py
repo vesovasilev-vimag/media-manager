@@ -65,9 +65,7 @@ def execute(worker: Any, task: dict[str, Any]) -> None:
         summary["processed"] += 1
     library = worker.cfg.nas_root / "Library"
     policies = db.rows(select(p.policies))
-    # Index the provider snapshot once, rather than comparing every torrent file
-    # against every library asset (quadratic on large libraries).
-    dependency_index: dict[str, list[str]] = {}
+    # Inventory is strictly about files on NAS, not torrent lifecycle.
     pending_progress = 0
 
     def progress(state: str) -> None:
@@ -87,14 +85,6 @@ def execute(worker: Any, task: dict[str, Any]) -> None:
     progress("RUNNING")
     try:
         worker.nas_health()
-        torrents = worker.qbt.all()  # Unavailable qBt never becomes a trusted empty dependency set.
-        for torrent in torrents:
-            for file in torrent.files:
-                source = torrent.save_path.rstrip("/") + "/" + file["name"]
-                if source.startswith("/library/"):
-                    dependency_index.setdefault(source[len("/library/") :], []).append(
-                        torrent.info_hash
-                    )
         for category in scan["scope"]:
             successful = True
             seen: set[str] = set()
@@ -224,9 +214,7 @@ def execute(worker: Any, task: dict[str, Any]) -> None:
                             if s.get("codec_type") == "audio"
                         ],
                         "external_subtitles": external,
-                        "dependencies": [],
                     }
-                    data["dependencies"] = dependency_index.get(rel, [])
                     if (
                         path.stat().st_mtime_ns != stat.st_mtime_ns
                         or path.stat().st_size != stat.st_size
@@ -249,7 +237,6 @@ def execute(worker: Any, task: dict[str, Any]) -> None:
                         and prior
                         and (
                             prior["data"].get("external_subtitles") != external
-                            or prior["data"].get("dependencies") != data["dependencies"]
                             or prior["availability"] != "AVAILABLE"
                         )
                     )
