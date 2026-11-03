@@ -133,8 +133,33 @@ def execute(worker: Any, task: dict[str, Any]) -> None:
                         and prior["mtime_ns"] == stat.st_mtime_ns
                         and prior["observed_size"] == stat.st_size
                     )
-                    fingerprint = prior["fingerprint"] if cached and prior else sha256(path)
-                    analysis = prior["data"]["probe"] if cached and prior else worker.probe(path)
+                    # Pre-v1.1 catalog entries often lack both stat fields.
+                    # Reuse their historical fingerprint and probe on a same-size
+                    # match, but mark the fingerprint as NOT newly verified.
+                    # Every proposed filesystem effect hashes its source again.
+                    old_probe_size = (
+                        (prior["data"].get("probe") or {}).get("format", {}).get("size")
+                        if prior
+                        else None
+                    )
+                    legacy_cached = bool(
+                        prior
+                        and prior["mtime_ns"] is None
+                        and prior["observed_size"] is None
+                        and str(old_probe_size).isdecimal()
+                        and int(old_probe_size) == stat.st_size
+                        and isinstance(prior["fingerprint"], str)
+                        and len(prior["fingerprint"]) == 64
+                        and prior["data"].get("probe")
+                    )
+                    fingerprint = (
+                        prior["fingerprint"] if (cached or legacy_cached) and prior else sha256(path)
+                    )
+                    analysis = (
+                        prior["data"]["probe"]
+                        if (cached or legacy_cached) and prior
+                        else worker.probe(path)
+                    )
                     # Reuse stable identity, including manual corrections; filename guesses never confirm IDs.
                     identity = (prior or {}).get("data", {}).get("identity") or {}
                     nfo = path.with_suffix(".nfo")
@@ -184,6 +209,15 @@ def execute(worker: Any, task: dict[str, Any]) -> None:
                         and prior["data"].get("bg") == "BG_VERIFIED"
                         else bg_state(analysis, fingerprint, []),
                         "inventory_only": True,
+                        "fingerprint_verification": (
+                            "historical_unverified"
+                            if legacy_cached
+                            else (prior or {}).get("data", {}).get(
+                                "fingerprint_verification", "historical"
+                            )
+                            if cached
+                            else "verified"
+                        ),
                         "stream_keys": [
                             {"index": s.get("index"), "key": digest(s)}
                             for s in analysis.get("streams", [])
@@ -220,7 +254,9 @@ def execute(worker: Any, task: dict[str, Any]) -> None:
                         )
                     )
                     needs_update = not cached or metadata_changed
-                    outcome = "unchanged" if cached else "changed" if prior else "new"
+                    outcome = (
+                        "unchanged" if cached or legacy_cached else "changed" if prior else "new"
+                    )
                     if needs_update or rel not in outcomes:
                         with db.transaction() as conn:
                             db.assert_lease(conn, task)
