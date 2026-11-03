@@ -35,8 +35,8 @@ services:
       VIMAG_ENVIRONMENT: production
       VIMAG_ALLOWED_HOST: ${MANAGER_HOST:?}
       VIMAG_ORIGIN: https://${MANAGER_HOST:?}
-      VIMAG_WRITE_ENABLED: "false"
-      VIMAG_AUTOMATIC_INTAKE: "false"
+      VIMAG_WRITE_ENABLED: ${VIMAG_WRITE_ENABLED:?Explicitly set after backup and preflight}
+      VIMAG_AUTOMATIC_INTAKE: ${VIMAG_AUTOMATIC_INTAKE:?Explicitly set after pilot approval}
       VIMAG_NAS_MOUNT_SOURCE: ${NAS_MOUNT_SOURCE:?Set exact verified CIFS source}
     secrets: [db_password, setup_token]
     depends_on: {db: {condition: service_healthy}}
