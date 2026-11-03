@@ -2,7 +2,7 @@
 
 import os
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from sqlalchemy import insert, select, update
 
@@ -137,13 +137,15 @@ def execute(worker: Any, task: dict[str, Any]) -> None:
                         and prior["mtime_ns"] is None
                         and prior["observed_size"] is None
                         and str(old_probe_size).isdecimal()
-                        and int(old_probe_size) == stat.st_size
+                        and int(cast(str | int, old_probe_size)) == stat.st_size
                         and isinstance(prior["fingerprint"], str)
                         and len(prior["fingerprint"]) == 64
                         and prior["data"].get("probe")
                     )
                     fingerprint = (
-                        prior["fingerprint"] if (cached or legacy_cached) and prior else sha256(path)
+                        prior["fingerprint"]
+                        if (cached or legacy_cached) and prior
+                        else sha256(path)
                     )
                     analysis = (
                         prior["data"]["probe"]
@@ -202,9 +204,9 @@ def execute(worker: Any, task: dict[str, Any]) -> None:
                         "fingerprint_verification": (
                             "historical_unverified"
                             if legacy_cached
-                            else (prior or {}).get("data", {}).get(
-                                "fingerprint_verification", "historical"
-                            )
+                            else (prior or {})
+                            .get("data", {})
+                            .get("fingerprint_verification", "historical")
                             if cached
                             else "verified"
                         ),

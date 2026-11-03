@@ -230,7 +230,9 @@ def test_SCAN_does_not_contact_qbt_and_preserves_existing_dependencies(
     client = login(db)
     scan = post(client, "/library/scans", {"category": "movies"}).json()
     drive(worker)
-    assert client.get("/api/v1/library/scans/" + scan["id"]).json()["state"] == "COMPLETED"
+    assert (
+        client.get("/api/v1/library/scans/" + scan["id"]).json()["state"] == "COMPLETED"
+    )
     current = db.one(select(p.assets).where(p.assets.c.id == previous["id"]))
     assert current["data"]["dependencies"] == ["existing-torrent-ref"]
 
@@ -254,7 +256,10 @@ def test_SCAN_legacy_catalogue_bootstrap_reuses_historical_probe(
     client = login(db)
     result = post(client, "/library/scans", {"category": "movies"}).json()
     drive(worker)
-    assert client.get("/api/v1/library/scans/" + result["id"]).json()["state"] == "COMPLETED"
+    assert (
+        client.get("/api/v1/library/scans/" + result["id"]).json()["state"]
+        == "COMPLETED"
+    )
     updated = db.one(select(p.assets).where(p.assets.c.id == original["id"]))
     assert not calls
     assert updated["fingerprint"] == original["fingerprint"]
