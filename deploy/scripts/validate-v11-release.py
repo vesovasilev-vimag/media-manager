@@ -6,8 +6,8 @@ from pathlib import Path
 
 
 def validate(manifest: dict) -> None:
-    if manifest.get("version") != "1.1.0-rc.1":
-        raise ValueError("Wrong v1.1 version")
+    if manifest.get("version") != "1.1.0":
+        raise ValueError("Wrong stable v1.1 version")
     if not re.fullmatch(r"[0-9a-f]{40}", str(manifest.get("commit", ""))):
         raise ValueError("Invalid source commit")
     for name, repository in {"web": "vesovasilev/media-manager-web", "backend": "vesovasilev/media-manager-backend", "postgres": "postgres"}.items():
