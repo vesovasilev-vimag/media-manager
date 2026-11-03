@@ -2,10 +2,14 @@
 
 **Status:** release preparation only. Publishing requires explicit manual GitHub Actions dispatch. Never reuse the v1.0 RC workflow or tag.
 
+## Stable v1.1 release identity
+
+The release is **ViMag Media Manager 1.1** (semantic version `1.1.0`). It is not an RC or prerelease. All new artifact labels, images and deployment manifest use `1.1.0`. The historical `v1.0.0-rc.1` remains immutable.
+
 ## GitHub publication
 
 - Source: `codex/rc1` after PR #5, `bf350818408bf058885ff1ed4c51fd8076bf0610` at the time this document was authored.
-- Workflow: `.github/workflows/publish-v11.yml` — **manual workflow_dispatch only**, on `codex/rc1`; reruns CI and security before creating immutable `v1.1.0-rc.1` tag and two multiarchitecture Docker Hub images.
+- Workflow: `.github/workflows/publish-v11.yml` — **manual workflow_dispatch only**, on `codex/rc1`; reruns CI and security before creating immutable `v1.1.0` tag and two multiarchitecture Docker Hub images.
 - Output: `v11-deployment.tar.gz` containing digest-locked `release-manifest.json`, original production Compose template and operator scripts. `deploy/scripts/validate-v11-release.py` validates exact v1.1 schema `0002` and image digests.
 - No automatic host deployment or write flag activation. PR merge by itself must not auto-publish v1.1.
 - Guard: existing tags and Docker image tags cannot be overwritten. Partially completed publication needs manual evidence reconciliation, not blind rerun. The original RC1 build workflow may run on source changes in `codex/rc1` and fail its immutable RC1 tag guard; **do not remove that guard or force RC1 republish**.
