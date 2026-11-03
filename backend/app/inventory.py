@@ -100,9 +100,7 @@ def execute(worker: Any, task: dict[str, Any]) -> None:
             seen: set[str] = set()
             try:
                 roots = {CATEGORIES[category]}
-                known = db.rows(
-                    select(p.assets).where(p.assets.c.category == category)
-                )
+                known = db.rows(select(p.assets).where(p.assets.c.category == category))
                 by_path = {row["relative_path"]: row for row in known if row["root"] == "library"}
                 required_roots = {
                     row["relative_path"].split("/")[0]
