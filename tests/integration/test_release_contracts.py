@@ -24,7 +24,20 @@ def test_production_four_containers_worker_only_single_nas_bind() -> None:
     volumes = config["services"]["worker"]["volumes"]
     assert len([v for v in volumes if v["source"] == "/mnt/nas/Movies"]) == 1
     assert all(v["bind"]["create_host_path"] is False for v in volumes)
-    assert config["services"]["worker"]["environment"]["VIMAG_WRITE_ENABLED"] == "false"
+    # Production writes are deliberately opt-in, never hardwired either way.
+    # The private deployment environment must explicitly choose its run mode,
+    # while the shipped example remains read-only until preflight.
+    environment = config["services"]["worker"]["environment"]
+    assert environment["VIMAG_WRITE_ENABLED"].startswith(
+        "${VIMAG_WRITE_ENABLED:?"
+    )
+    assert environment["VIMAG_AUTOMATIC_INTAKE"].startswith(
+        "${VIMAG_AUTOMATIC_INTAKE:?"
+    )
+    assert config["services"]["api"]["environment"]["VIMAG_WRITE_ENABLED"] == environment["VIMAG_WRITE_ENABLED"]
+    example = (ROOT / "deploy/env.example").read_text()
+    assert "\\nVIMAG_WRITE_ENABLED=false\\n" in "\\n" + example
+    assert "\\nVIMAG_AUTOMATIC_INTAKE=false\\n" in "\\n" + example
     assert config["networks"]["backend"]["internal"] is True
     assert (
         config["services"]["db"]["environment"]["POSTGRES_USER"]
