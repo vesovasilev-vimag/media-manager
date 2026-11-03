@@ -7,10 +7,10 @@ concurrency:
   cancel-in-progress: false
 jobs:
   verify:
-    if: github.ref == 'refs/heads/codex/rc1'
+    if: github.ref == 'refs/heads/main'
     uses: ./.github/workflows/ci.yml
   security:
-    if: github.ref == 'refs/heads/codex/rc1'
+    if: github.ref == 'refs/heads/main'
     uses: ./.github/workflows/security.yml
   prepare:
     needs: [verify, security]
@@ -24,7 +24,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -eu
-          test "$GITHUB_REF" = refs/heads/codex/rc1
+          test "$GITHUB_REF" = refs/heads/main
           test "$HUB_USER" = vesovasilev
           test -n "$HUB_TOKEN"
           if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/v1.1.0" > existing-tag.json 2> tag-error.txt; then
