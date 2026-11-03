@@ -60,7 +60,7 @@ def backup(db: p.Database, destination: Path) -> dict[str, Any]:
         "sha256": checksum,
         "format": "pg_dump-custom",
         "created_at": p.now().isoformat(),
-        "release": "1.1.0-dev",
+        "release": "1.1.0",
     }
     destination.with_suffix(".manifest.json").write_text(json.dumps(manifest, indent=2))
     return manifest
