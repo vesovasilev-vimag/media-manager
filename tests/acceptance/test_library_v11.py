@@ -175,6 +175,19 @@ def test_SCAN_incremental_missing_reappears_and_failed_scope(
     post(client, "/library/scans", {"category": "movies"})
     drive(worker)
     assert len(calls) == 2
+    # Fast re-scan must preserve fingerprint, identity, revision and BG decisions.
+    stable = db.one(select(p.assets).where(p.assets.c.id == a["id"]))
+    result = post(client, "/library/scans", {"category": "movies"}).json()
+    drive(worker)
+    assert (
+        client.get("/api/v1/library/scans/" + result["id"]).json()["state"]
+        == "COMPLETED"
+    )
+    after = db.one(select(p.assets).where(p.assets.c.id == a["id"]))
+    assert after["fingerprint"] == stable["fingerprint"]
+    assert after["revision"] == stable["revision"]
+    assert after["data"]["identity"] == stable["data"]["identity"]
+    assert len(calls) == 2
     path.unlink()
     post(client, "/library/scans", {"category": "movies"})
     drive(worker)
