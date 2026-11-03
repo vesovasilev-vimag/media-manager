@@ -1,4 +1,4 @@
-name: Publish ViMag v1.1 release candidate (manual)
+name: Publish ViMag v1.1 stable release (manual)
 on:
   workflow_dispatch:
 permissions: {contents: read}
@@ -27,7 +27,7 @@ jobs:
           test "$GITHUB_REF" = refs/heads/codex/rc1
           test "$HUB_USER" = vesovasilev
           test -n "$HUB_TOKEN"
-          if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/v1.1.0-rc.1" > existing-tag.json 2> tag-error.txt; then
+          if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/v1.1.0" > existing-tag.json 2> tag-error.txt; then
             echo 'BLOCKED: release tag already exists; never overwrite immutable release'
             exit 1
           else
@@ -35,7 +35,7 @@ jobs:
           fi
       - name: Create immutable v1.1 release tag
         env: {GH_TOKEN: '${{ github.token }}'}
-        run: gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" -f ref=refs/tags/v1.1.0-rc.1 -f sha="$GITHUB_SHA" > /dev/null
+        run: gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" -f ref=refs/tags/v1.1.0 -f sha="$GITHUB_SHA" > /dev/null
   publish:
     needs: prepare
     runs-on: ubuntu-24.04
@@ -49,12 +49,12 @@ jobs:
           - {image: backend, context: backend}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
-        with: {ref: v1.1.0-rc.1}
+        with: {ref: v1.1.0}
       - name: Validate immutable source and target tag
         run: |
           set -eu
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
-          if docker buildx imagetools inspect vesovasilev/media-manager-${{ matrix.image }}:1.1.0-rc.1 >/dev/null 2>&1; then
+          if docker buildx imagetools inspect vesovasilev/media-manager-${{ matrix.image }}:1.1.0 >/dev/null 2>&1; then
             echo 'BLOCKED: image tag already exists; never overwrite immutable release'
             exit 1
           fi
@@ -70,12 +70,12 @@ jobs:
           context: ${{ matrix.context }}
           push: true
           platforms: linux/amd64,linux/arm64
-          tags: vesovasilev/media-manager-${{ matrix.image }}:1.1.0-rc.1
+          tags: vesovasilev/media-manager-${{ matrix.image }}:1.1.0
           provenance: mode=max
           sbom: true
           labels: |
             org.opencontainers.image.revision=${{ github.sha }}
-            org.opencontainers.image.version=1.1.0-rc.1
+            org.opencontainers.image.version=1.1.0
             org.opencontainers.image.source=https://github.com/vesovasilev-vimag/media-manager
       - name: Record digest
         env: {DIGEST: '${{ steps.build.outputs.digest }}'}
@@ -89,12 +89,12 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
-        with: {ref: v1.1.0-rc.1}
+        with: {ref: v1.1.0}
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with: {pattern: v11-image-*, path: release, merge-multiple: true}
       - name: Validate release and package immutable deploy inputs
         run: |
-          jq -n --arg commit "$GITHUB_SHA" --arg web "$(jq -r .image release/web.json)" --arg backend "$(jq -r .image release/backend.json)" '{version:"1.1.0-rc.1",commit:$commit,compatible_schemas:["0002"],platforms:["linux/amd64","linux/arm64"],images:{web:$web,backend:$backend,postgres:"postgres@sha256:266d3c257594e195b309ae9d1805e54c788f1d7b375f56bf6c367aac6c917e7b"}}' > release/release-manifest.json
+          jq -n --arg commit "$GITHUB_SHA" --arg web "$(jq -r .image release/web.json)" --arg backend "$(jq -r .image release/backend.json)" '{version:"1.1.0",commit:$commit,compatible_schemas:["0002"],platforms:["linux/amd64","linux/arm64"],images:{web:$web,backend:$backend,postgres:"postgres@sha256:266d3c257594e195b309ae9d1805e54c788f1d7b375f56bf6c367aac6c917e7b"}}' > release/release-manifest.json
           python3 deploy/scripts/validate-v11-release.py release/release-manifest.json
           cp deploy/compose.prod.yaml deploy/env.example release/
           cp -r deploy/scripts release/
