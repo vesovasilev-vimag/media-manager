@@ -44,6 +44,17 @@ def upgrade() -> None:
             .where(p.assets.c.id == row["id"])
             .values(**normalized(row["relative_path"], row["data"]))
         )
+    # RC1 tracked quarantine only in its manifest table. Preserve that workflow
+    # during upgrade without probing or modifying any filesystem paths.
+    conn.execute(
+        sa.update(p.assets)
+        .where(
+            p.assets.c.id.in_(
+                sa.select(p.quarantine.c.asset_id).where(p.quarantine.c.state == "QUARANTINED")
+            )
+        )
+        .values(workflow_state="QUARANTINED")
+    )
     op.execute(
         "CREATE INDEX ix_assets_browse ON library_assets(workflow_state, category, lower(title), id)"
     )

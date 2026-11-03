@@ -44,7 +44,7 @@ Real isolated Jellyfin 10.10.7 checks collection traversal, edition grouping, pr
 
 ## Migration/recovery and deployment prerequisites
 
-Schema 0002 is additive; 0001 uses frozen RC1 metadata. Before a separately authorized rollout: quiesce Worker, capture pending journals, make/check a custom-format PostgreSQL backup, rehearse an empty-database restore, and test 0001→0002 on the restored disposable copy. Automated fixtures exercise backfill, restricted down/up, backup/restore and pending-operation preservation. Runtime DB remains unprivileged, API has no media mounts, Worker retains one NAS bind.
+Schema 0002 is additive; 0001 uses frozen RC1 metadata. Existing RC1 quarantine manifests backfill the new asset workflow state without filesystem access; restored manifests retain active assets and restore history is preserved. Before a separately authorized rollout: quiesce Worker, capture pending journals, make/check a custom-format PostgreSQL backup, rehearse an empty-database restore, and test 0001→0002 on the restored disposable copy. Automated fixtures exercise backfill, restricted down/up, backup/restore and pending-operation preservation. Runtime DB remains unprivileged, API has no media mounts, Worker retains one NAS bind.
 
 An RC1/schema-0001 image is not a rollback target for schema 0002. Keep writes off during recovery. Reconcile NAS/qBt/journals first: DB restore does not undo filesystem operations. Never blindly replay an unobserved move, overwrite collisions, recreate deleted files from inventory or remove legacy torrents. Expired leases reclaim fencing epochs and durable operation keys. Production maintenance additionally requires G-06 inventory proof.
 
