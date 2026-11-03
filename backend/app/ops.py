@@ -143,7 +143,9 @@ def validate_production_authorization(proof: dict[str, Any]) -> None:
     """Require operator attestations; never synthesize success for missing evidence."""
     if proof.get("mode") != "production":
         raise GateError("PRODUCTION_MODE_REQUIRED")
-    if not isinstance(proof.get("authorized_by"), str) or not proof["authorized_by"].strip():
+    if not isinstance(proof.get("authorized_by"), str) or not proof[
+        "authorized_by"
+    ].strip():
         raise GateError("AUTHORIZED_OPERATOR_REQUIRED")
     if any(proof.get(key) is not True for key in PRODUCTION_GATE_KEYS):
         raise GateError("PRODUCTION_GATES_INCOMPLETE")
@@ -161,7 +163,9 @@ def authorize_production(db: p.Database, source: Path) -> None:
     checked = {key: True for key in PRODUCTION_GATE_KEYS}
     checked.update(mode="production", authorized_by=proof["authorized_by"].strip())
     with db.transaction() as conn:
-        revision = conn.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
+        revision = conn.execute(
+            text("SELECT version_num FROM alembic_version")
+        ).scalar_one()
         if revision != "0002":
             raise GateError("PRODUCTION_SCHEMA_NOT_READY")
         conn.execute(
@@ -185,7 +189,9 @@ def authorize_production(db: p.Database, source: Path) -> None:
 
 
 def operational_status(db: p.Database) -> dict[str, Any]:
-    rows = db.rows(select(p.settings_table).where(p.settings_table.c.key == "operational_authorization"))
+    rows = db.rows(
+        select(p.settings_table).where(p.settings_table.c.key == "operational_authorization")
+    )
     proof = rows[0]["value"] if rows else {}
     return {
         "version": "1.1.0",
@@ -195,14 +201,24 @@ def operational_status(db: p.Database) -> dict[str, Any]:
         "production_authorized": proof.get("mode") == "production"
         and bool(proof.get("authorized_by"))
         and all(proof.get(key) is True for key in PRODUCTION_GATE_KEYS),
-        "outstanding_gates": [key for key in PRODUCTION_GATE_KEYS if proof.get(key) is not True],
+        "outstanding_gates": [
+            key for key in PRODUCTION_GATE_KEYS if proof.get(key) is not True
+        ],
     }
+
 
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "action",
-        choices=["backup", "restore", "check-schema", "health", "authorize-production", "status"],
+        choices=[
+            "backup",
+            "restore",
+            "check-schema",
+            "health",
+            "authorize-production",
+            "status",
+        ],
     )
     parser.add_argument("path", nargs="?")
     parser.add_argument("--confirm-empty", action="store_true")
