@@ -121,7 +121,6 @@ def restore(
     restored.engine.dispose()
 
 
-
 PRODUCTION_GATE_KEYS = (
     "backup_verified",
     "database_restore_verified",
@@ -143,9 +142,7 @@ def validate_production_authorization(proof: dict[str, Any]) -> None:
     """Require operator attestations; never synthesize success for missing evidence."""
     if proof.get("mode") != "production":
         raise GateError("PRODUCTION_MODE_REQUIRED")
-    if not isinstance(proof.get("authorized_by"), str) or not proof[
-        "authorized_by"
-    ].strip():
+    if not isinstance(proof.get("authorized_by"), str) or not proof["authorized_by"].strip():
         raise GateError("AUTHORIZED_OPERATOR_REQUIRED")
     if any(proof.get(key) is not True for key in PRODUCTION_GATE_KEYS):
         raise GateError("PRODUCTION_GATES_INCOMPLETE")
@@ -163,9 +160,7 @@ def authorize_production(db: p.Database, source: Path) -> None:
     checked = {key: True for key in PRODUCTION_GATE_KEYS}
     checked.update(mode="production", authorized_by=proof["authorized_by"].strip())
     with db.transaction() as conn:
-        revision = conn.execute(
-            text("SELECT version_num FROM alembic_version")
-        ).scalar_one()
+        revision = conn.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
         if revision != "0002":
             raise GateError("PRODUCTION_SCHEMA_NOT_READY")
         conn.execute(
@@ -201,9 +196,7 @@ def operational_status(db: p.Database) -> dict[str, Any]:
         "production_authorized": proof.get("mode") == "production"
         and bool(proof.get("authorized_by"))
         and all(proof.get(key) is True for key in PRODUCTION_GATE_KEYS),
-        "outstanding_gates": [
-            key for key in PRODUCTION_GATE_KEYS if proof.get(key) is not True
-        ],
+        "outstanding_gates": [key for key in PRODUCTION_GATE_KEYS if proof.get(key) is not True],
     }
 
 
