@@ -8,16 +8,16 @@ The release is **ViMag Media Manager 1.1** (semantic version `1.1.0`). It is not
 
 ## GitHub publication
 
-- Source: `codex/rc1` after PR #5, `bf350818408bf058885ff1ed4c51fd8076bf0610` at the time this document was authored.
-- Workflow: `.github/workflows/publish-v11.yml` — **manual workflow_dispatch only**, on `codex/rc1`; reruns CI and security before creating immutable `v1.1.0` tag and two multiarchitecture Docker Hub images.
+- Source: `main` after PR #5, `bf350818408bf058885ff1ed4c51fd8076bf0610` at the time this document was authored.
+- Workflow: `.github/workflows/publish-v11.yml` — **manual workflow_dispatch only**, on `main`; reruns CI and security before creating immutable `v1.1.0` tag and two multiarchitecture Docker Hub images.
 - Output: `v11-deployment.tar.gz` containing digest-locked `release-manifest.json`, original production Compose template and operator scripts. `deploy/scripts/validate-v11-release.py` validates exact v1.1 schema `0002` and image digests.
-- No automatic host deployment or write flag activation. PR merge by itself must not auto-publish v1.1.
-- Guard: existing tags and Docker image tags cannot be overwritten. Partially completed publication needs manual evidence reconciliation, not blind rerun. The original RC1 build workflow may run on source changes in `codex/rc1` and fail its immutable RC1 tag guard; **do not remove that guard or force RC1 republish**.
+- No automatic host deployment. Deployment flags are explicit environment settings, not permanently hardcoded: keep both false during schema migration and read-only preflight, then enable VIMAG_WRITE_ENABLED=true for verified library operations and VIMAG_AUTOMATIC_INTAKE=true separately after the isolated pilot and torrent guards. PR merge by itself must not auto-publish v1.1.
+- Guard: existing tags and Docker image tags cannot be overwritten. Partially completed publication needs manual evidence reconciliation, not blind rerun. The original RC1 build workflow may run on source changes in `main` and fail its immutable RC1 tag guard; **do not remove that guard or force RC1 republish**.
 
 ## Required production preflight, after images publish
 
 1. Verify production access to ViMag host privately; check exact current Compose directory, image digests, service names, PostgreSQL schema, versions and volume paths. Do not assume local paths from dev docs.
-2. Keep `VIMAG_WRITE_ENABLED=false` and `VIMAG_AUTOMATIC_INTAKE=false` in Compose; verify runtime env after restart.
+2. Compose requires explicit `VIMAG_WRITE_ENABLED` and `VIMAG_AUTOMATIC_INTAKE` in the private `.env`. Start both false for backup/migration and host preflight; after verified compatibility, authorize full normal operation by setting `VIMAG_WRITE_ENABLED=true`. Automatic intake is a separate operator decision and must preserve legacy torrent mapping. Verify effective runtime environment after restart.
 3. Rotate the Jellyfin credential previously exposed in conversation; keep secrets entirely outside Git.
 4. Quiesce Worker, check all uncompleted operation journals and preserve them.
 5. Create consistent PostgreSQL custom-format backup, SHA-256 and a second independent copy; perform empty-DB restore and staged migration `0001`→`0002` from that backup; verify quarantined RC1 manifest state backfill and rollback/recovery strategy.
