@@ -1,0 +1,15 @@
+name: Publish ViMag v1.1 stable release (manual)
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  registration-only:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Block publication from main
+        run: |
+          echo 'This is the inert default-branch registration stub.'
+          echo 'To publish ViMag 1.1, dispatch this workflow with ref codex/rc1.'
+          echo 'The codex/rc1 workflow contains the release gates and publication steps.'
+          exit 1
