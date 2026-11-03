@@ -28,9 +28,7 @@ def test_production_four_containers_worker_only_single_nas_bind() -> None:
     # The private deployment environment must explicitly choose its run mode,
     # while the shipped example remains read-only until preflight.
     environment = config["services"]["worker"]["environment"]
-    assert environment["VIMAG_WRITE_ENABLED"].startswith(
-        "${VIMAG_WRITE_ENABLED:?"
-    )
+    assert environment["VIMAG_WRITE_ENABLED"].startswith("${VIMAG_WRITE_ENABLED:?")
     assert environment["VIMAG_AUTOMATIC_INTAKE"].startswith(
         "${VIMAG_AUTOMATIC_INTAKE:?"
     )
