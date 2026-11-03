@@ -558,10 +558,10 @@ onUnmounted(() => {
       </nav>
       <div class="side-bottom panel">
         <ShieldCheck :size="20" /><strong>{{
-          health?.write_enabled ? "Контролирани операции" : "Защитен режим"
+          health?.write_enabled ? "Операции активни" : "Операции неактивни"
         }}</strong>
         <p>Legacy torrents са защитени.</p>
-        <span class="badge">1.1.0-dev</span>
+        <span class="badge">1.1.0</span>
       </div>
     </aside>
     <div class="workspace">
@@ -580,8 +580,8 @@ onUnmounted(() => {
         <div class="row">
           <span
             class="badge"
-            :class="health?.write_enabled ? 'warn' : 'success'"
-            >{{ health?.write_enabled ? "WRITE ENABLED" : "READ ONLY" }}</span
+             :class="health?.write_enabled ? 'success' : 'warn'"
+            >{{ health?.write_enabled ? "Операции активни" : "Операции неактивни" }}</span
           ><button
             class="icon"
             aria-label="Обнови"
