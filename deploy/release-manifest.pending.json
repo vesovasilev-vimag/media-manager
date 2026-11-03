@@ -1,0 +1,7 @@
+{
+  "state": "NOT_PUBLISHED",
+  "version": "1.0.0-rc.1",
+  "compatible_schemas": ["0001"],
+  "images": {},
+  "reason": "Only build-release.yml may populate actual immutable release image digests after all checks pass. This pending file is not deployable."
+}

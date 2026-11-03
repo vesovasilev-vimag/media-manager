@@ -1,0 +1,69 @@
+name: vimag-dev
+services:
+  db:
+    image: postgres:17.11-alpine@sha256:266d3c257594e195b309ae9d1805e54c788f1d7b375f56bf6c367aac6c917e7b
+    environment:
+      POSTGRES_USER: vimag
+      POSTGRES_DB: vimag
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_password
+    secrets: [db_password]
+    volumes: [pgdata:/var/lib/postgresql/data]
+    ports: ["127.0.0.1:55432:5432"]
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U vimag -d vimag"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+  api:
+    build: {context: ../backend}
+    command: [python, -m, app.api]
+    environment: &environment
+      VIMAG_ENVIRONMENT: development
+      VIMAG_ADAPTERS: emulated
+      VIMAG_COOKIE_SECURE: "false"
+      VIMAG_ALLOWED_HOST: localhost
+      VIMAG_ORIGIN: http://localhost:8088
+      VIMAG_MIN_FREE_BYTES: "1048576"
+      VIMAG_MIN_FREE_PERCENT: "0"
+    secrets: [db_password, setup_token]
+    depends_on: {db: {condition: service_healthy}}
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; r=urllib.request.Request('http://127.0.0.1:8000/api/v1/health/live',headers={'Host':'localhost'}); urllib.request.urlopen(r,timeout=3)"]
+      interval: 3s
+      timeout: 5s
+      retries: 20
+  worker:
+    build: {context: ../backend}
+    command: [python, -m, app.worker]
+    environment: *environment
+    secrets: [db_password]
+    depends_on: {db: {condition: service_healthy}}
+    volumes: [synthetic_downloads:/downloads, synthetic_nas:/nas-movies]
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+  web:
+    build: {context: ../frontend}
+    ports: ["127.0.0.1:8088:8080"]
+    depends_on: {api: {condition: service_healthy}}
+    read_only: true
+    tmpfs: [/tmp, /var/cache/nginx, /var/run]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    healthcheck:
+      test: [CMD, wget, --spider, -q, http://127.0.0.1:8080/]
+      interval: 3s
+      timeout: 5s
+      retries: 20
+volumes:
+  pgdata:
+  synthetic_downloads:
+  synthetic_nas:
+secrets:
+  db_password: {file: ./secrets/db_password}
+  setup_token: {file: ./secrets/setup_token}

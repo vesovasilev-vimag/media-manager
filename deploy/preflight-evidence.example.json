@@ -1,0 +1,9 @@
+{
+  "private_tls_verified": false,
+  "secrets_permissions_verified": false,
+  "jellyfin_token_rotated": false,
+  "host_database_restore_verified": false,
+  "qbt_backup_verified": false,
+  "evidence_references": {},
+  "note": "Populate only from actual private host evidence. This example cannot authorize deployment."
+}

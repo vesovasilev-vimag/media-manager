@@ -1,0 +1,9 @@
+.git
+.tools
+.venv
+**/node_modules
+**/secrets
+.env*
+**/.pytest_cache
+**/__pycache__
+.test-artifacts

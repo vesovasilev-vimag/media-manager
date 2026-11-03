@@ -1,0 +1,11 @@
+[extend]
+useDefault = true
+
+[[rules]]
+id = "generic-api-key"
+[[rules.allowlists]]
+description = "Generated source-file SHA-256 fingerprints, recomputable by the versioned evidence scripts"
+condition = "AND"
+paths = ['''^docs/(rc1-automated-evidence|v1\.1/automated-evidence)\.json$''']
+regexTarget = "line"
+regexes = ['''^\s+"(?:backend/(?:app|alembic)|tests|frontend/(?:src|tests|e2e))/[^"\n]+": "[a-f0-9]{64}"[,]?$''']

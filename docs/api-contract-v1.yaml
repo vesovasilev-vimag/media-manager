@@ -1,0 +1,3049 @@
+openapi: 3.1.0
+info:
+  title: ViMag Media Manager
+  version: 1.1.0-dev
+paths:
+  /api/v1/health/live:
+    get:
+      summary: Live
+      operationId: live_api_v1_health_live_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                additionalProperties: true
+                type: object
+                title: Response Live Api V1 Health Live Get
+  /api/v1/auth/setup:
+    post:
+      summary: Setup
+      operationId: setup_api_v1_auth_setup_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Setup'
+        required: true
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: boolean
+                type: object
+                title: Response Setup Api V1 Auth Setup Post
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/auth/login:
+    post:
+      summary: Login
+      operationId: login_api_v1_auth_login_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Credentials'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+                title: Response Login Api V1 Auth Login Post
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/auth/logout:
+    post:
+      summary: Logout
+      operationId: logout_api_v1_auth_logout_post
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: boolean
+                type: object
+                title: Response Logout Api V1 Auth Logout Post
+      security:
+      - session: []
+      parameters:
+      - name: X-CSRF-Token
+        in: header
+        required: true
+        schema:
+          type: string
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 16
+          maxLength: 128
+      - name: Origin
+        in: header
+        required: true
+        schema:
+          type: string
+  /api/v1/auth/password:
+    post:
+      summary: Rotate Password
+      operationId: rotate_password_api_v1_auth_password_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Credentials'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: boolean
+                type: object
+                title: Response Rotate Password Api V1 Auth Password Post
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - session: []
+      parameters:
+      - name: X-CSRF-Token
+        in: header
+        required: true
+        schema:
+          type: string
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 16
+          maxLength: 128
+      - name: Origin
+        in: header
+        required: true
+        schema:
+          type: string
+  /api/v1/me:
+    get:
+      summary: Me
+      operationId: me_api_v1_me_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                additionalProperties: true
+                type: object
+                title: Response Me Api V1 Me Get
+      security:
+      - session: []
+  /api/v1/health/ready:
+    get:
+      summary: Ready
+      operationId: ready_api_v1_health_ready_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                additionalProperties: true
+                type: object
+                title: Response Ready Api V1 Health Ready Get
+      security:
+      - session: []
+  /api/v1/dashboard:
+    get:
+      summary: Dashboard
+      operationId: dashboard_api_v1_dashboard_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                additionalProperties: true
+                type: object
+                title: Response Dashboard Api V1 Dashboard Get
+      security:
+      - session: []
+  /api/v1/jobs:
+    get:
+      summary: List Jobs
+      operationId: list_jobs_api_v1_jobs_get
+      parameters:
+      - name: state
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: State
+      - name: category
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Category
+      - name: search
+        in: query
+        required: false
+        schema:
+          type: string
+          maxLength: 128
+          default: ''
+          title: Search
+      - name: bg
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Bg
+      - name: quality
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Quality
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 200
+          minimum: 1
+          default: 50
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+          title: Offset
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                title: Response List Jobs Api V1 Jobs Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - session: []
+  /api/v1/jobs/{job_id}:
+    get:
+      summary: Job Detail
+      operationId: job_detail_api_v1_jobs__job_id__get
+      parameters:
+      - name: job_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Job Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                title: Response Job Detail Api V1 Jobs  Job Id  Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - session: []
+  /api/v1/jobs/{job_id}/plan:
+    get:
+      summary: Job Plan
+      operationId: job_plan_api_v1_jobs__job_id__plan_get
+      parameters:
+      - name: job_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Job Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                title: Response Job Plan Api V1 Jobs  Job Id  Plan Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - session: []
+  /api/v1/jobs/{job_id}/operations:
+    get:
+      summary: Job Operations
+      operationId: job_operations_api_v1_jobs__job_id__operations_get
+      parameters:
+      - name: job_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Job Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: true
+                title: Response Job Operations Api V1 Jobs  Job Id  Operations Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - session: []
+  /api/v1/jobs/{job_id}/approve:
+    post:
+      summary: Approve
+      operationId: approve_api_v1_jobs__job_id__approve_post
+      parameters:
+      - name: job_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Job Id
+      - name: X-CSRF-Token
+        in: header
+        required: true
+        schema:
+          type: string
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 16
+          maxLength: 128
+      - name: Origin
+        in: header
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlanAction'
+      responses:
+        '202':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                title: Response Approve Api V1 Jobs  Job Id  Approve Post
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - session: []
+  /api/v1/jobs/{job_id}/review:
+    post:
+      summary: Review
+      operationId: review_api_v1_jobs__job_id__review_post
+      parameters:
+      - name: job_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Job Id
+      - name: X-CSRF-Token
+        in: header
+        required: true
+        schema:
+          type: string
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 16
+          maxLength: 128
+      - name: Origin
+        in: header
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Review'
+      responses:
+        '202':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                title: Response Review Api V1 Jobs  Job Id  Review Post
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - session: []
+  /api/v1/jobs/{job_id}/{action}:
+    post:
+      summary: Control
+      operationId: control_api_v1_jobs__job_id___action__post
+      parameters:
+      - name: job_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Job Id
+      - name: action
+        in: path
+        required: true
+        schema:
+          enum:
+          - pause
+          - resume
+          - retry
+          type: string
+          title: Action
+      - name: X-CSRF-Token
+        in: header
+        required: true
+        schema:
+          type: string
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 16
+          maxLength: 128
+      - name: Origin
+        in: header
+        required: true
+        schema:
+          type: string
+      responses:
+        '202':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                title: Response Control Api V1 Jobs  Job Id   Action  Post
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - session: []
+  /api/v1/library/assets:
+    get:
+      summary: Library
+      operationId: library_api_v1_library_assets_get
+      parameters:
+      - name: category
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - enum:
+            - movies
+            - series
+            - animations
+            - documentaries
+            - concerts
+            type: string
+          - type: 'null'
+          title: Category
+      - name: search
+        in: query
+        required: false
+        schema:
+          type: string
+          maxLength: 128
+          default: ''
+          title: Search
+      - name: video_quality
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - enum:
+            - SD
+            - HD
+            - Full HD
+            - 2K
+            - 4K
+            - 8K
+            type: string
+          - type: 'null'
+          title: Video Quality
+      - name: audio_codec
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            pattern: ^[a-z0-9_]{1,32}$
+          - type: 'null'
+          title: Audio Codec
+      - name: audio_language
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            pattern: ^([a-z]{2,3}|unknown|none)$
+          - type: 'null'
+          title: Audio Language
+      - name: subtitle_language
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            pattern: ^([a-z]{2,3}|unknown|none)$
+          - type: 'null'
+          title: Subtitle Language
+      - name: sort
+        in: query
+        required: false
+        schema:
+          enum:
+          - title
+          - category
+          - quality
+          - size
+          - path
+          type: string
+          default: title
+          title: Sort
+      - name: order
+        in: query
+        required: false
+        schema:
+          enum:
+          - asc
+          - desc
+          type: string
+          default: asc
+          title: Order
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 200
+          minimum: 1
+          default: 50
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+          title: Offset
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                title: Response Library Api V1 Library Assets Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - session: []
+  /api/v1/library/duplicates:
+    get:
+      summary: Duplicates
+      operationId: duplicates_api_v1_library_duplicates_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                additionalProperties: true
+                type: object
+                title: Response Duplicates Api V1 Library Duplicates Get
+      security:
+      - session: []
+  /api/v1/transfers:
+    get:
+      summary: Transfers
+      operationId: transfers_api_v1_transfers_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                additionalProperties: true
+                type: object
+                title: Response Transfers Api V1 Transfers Get
+      security:
+      - session: []
+  /api/v1/subtitles:
+    get:
+      summary: Subtitles
+      operationId: subtitles_api_v1_subtitles_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                additionalProperties: true
+                type: object
+                title: Response Subtitles Api V1 Subtitles Get
+      security:
+      - session: []
+  /api/v1/settings:
+    get:
+      summary: Settings
+      operationId: settings_api_v1_settings_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                additionalProperties: true
+                type: object
+                title: Response Settings Api V1 Settings Get
+      security:
+      - session: []
+  /api/v1/settings/{section}:
+    put:
+      summary: Save Settings
+      operationId: save_settings_api_v1_settings__section__put
+      parameters:
+      - name: section
+        in: path
+        required: true
+        schema:
+          enum:
+          - automation
+          - storage
+          type: string
+          title: Section
+      - name: X-CSRF-Token
+        in: header
+        required: true
+        schema:
+          type: string
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 16
+          maxLength: 128
+      - name: Origin
+        in: header
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties:
+                type: integer
+              title: Body
+      responses:
+        '202':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                title: Response Save Settings Api V1 Settings  Section  Put
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - session: []
+  /api/v1/library/scan:
+    post:
+      summary: Scan
+      operationId: scan_api_v1_library_scan_post
+      responses:
+        '202':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                additionalProperties: true
+                type: object
+                title: Response Scan Api V1 Library Scan Post
+      security:
+      - session: []
+      parameters:
+      - name: X-CSRF-Token
+        in: header
+        required: true
+        schema:
+          type: string
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 16
+          maxLength: 128
+      - name: Origin
+        in: header
+        required: true
+        schema:
+          type: string
+  /api/v1/audit:
+    get:
+      summary: Audit Log
+      operationId: audit_log_api_v1_audit_get
+      parameters:
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+          title: Offset
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                title: Response Audit Log Api V1 Audit Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - session: []
+  /api/v1/openapi.json:
+    get:
+      summary: Openapi
+      operationId: openapi_api_v1_openapi_json_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                additionalProperties: true
+                type: object
+                title: Response Openapi Api V1 Openapi Json Get
+      security:
+      - session: []
+  /api/v1/media/bg-evidence:
+    post:
+      summary: Bg Evidence
+      operationId: bg_evidence_api_v1_media_bg_evidence_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Evidence'
+        required: true
+      responses:
+        '202':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                additionalProperties: true
+                type: object
+                title: Response Bg Evidence Api V1 Media Bg Evidence Post
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - session: []
+      parameters:
+      - name: X-CSRF-Token
+        in: header
+        required: true
+        schema:
+          type: string
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 16
+          maxLength: 128
+      - name: Origin
+        in: header
+        required: true
+        schema:
+          type: string
+  /api/v1/library/assets/{asset_id}/quarantine-plan:
+    post:
+      summary: Quarantine Plan
+      operationId: quarantine_plan_api_v1_library_assets__asset_id__quarantine_plan_post
+      parameters:
+      - name: asset_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Asset Id
+      - name: X-CSRF-Token
+        in: header
+        required: true
+        schema:
+          type: string
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 16
+          maxLength: 128
+      - name: Origin
+        in: header
+        required: true
+        schema:
+          type: string
+      responses:
+        '202':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                title: Response Quarantine Plan Api V1 Library Assets  Asset Id  Quarantine
+                  Plan Post
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - session: []
+  /api/v1/library/quarantine-plans/{plan_id}/approve:
+    post:
+      summary: Approve Quarantine
+      operationId: approve_quarantine_api_v1_library_quarantine_plans__plan_id__approve_post
+      parameters:
+      - name: plan_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Plan Id
+      - name: X-CSRF-Token
+        in: header
+        required: true
+        schema:
+          type: string
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 16
+          maxLength: 128
+      - name: Origin
+        in: header
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlanAction'
+      responses:
+        '202':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                title: Response Approve Quarantine Api V1 Library Quarantine Plans  Plan
+                  Id  Approve Post
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - session: []
+  /api/v1/library/quarantine:
+    get:
+      summary: Quarantines
+      operationId: quarantines_api_v1_library_quarantine_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                additionalProperties: true
+                type: object
+                title: Response Quarantines Api V1 Library Quarantine Get
+      security:
+      - session: []
+  /api/v1/library/quarantine/{manifest_id}/restore:
+    post:
+      summary: Restore
+      operationId: restore_api_v1_library_quarantine__manifest_id__restore_post
+      parameters:
+      - name: manifest_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Manifest Id
+      - name: X-CSRF-Token
+        in: header
+        required: true
+        schema:
+          type: string
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 16
+          maxLength: 128
+      - name: Origin
+        in: header
+        required: true
+        schema:
+          type: string
+      responses:
+        '202':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                title: Response Restore Api V1 Library Quarantine  Manifest Id  Restore
+                  Post
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - session: []
+  /api/v1/subtitles/sync-proposal:
+    post:
+      summary: Subtitle Sync
+      operationId: subtitle_sync_api_v1_subtitles_sync_proposal_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubtitleSync'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                additionalProperties: true
+                type: object
+                title: Response Subtitle Sync Api V1 Subtitles Sync Proposal Post
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - session: []
+      parameters:
+      - name: X-CSRF-Token
+        in: header
+        required: true
+        schema:
+          type: string
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 16
+          maxLength: 128
+      - name: Origin
+        in: header
+        required: true
+        schema:
+          type: string
+  /api/v1/subtitles/verify:
+    post:
+      summary: Subtitle Verify
+      operationId: subtitle_verify_api_v1_subtitles_verify_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubtitleReview'
+        required: true
+      responses:
+        '202':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                additionalProperties: true
+                type: object
+                title: Response Subtitle Verify Api V1 Subtitles Verify Post
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - session: []
+      parameters:
+      - name: X-CSRF-Token
+        in: header
+        required: true
+        schema:
+          type: string
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 16
+          maxLength: 128
+      - name: Origin
+        in: header
+        required: true
+        schema:
+          type: string
+  /api/v1/jobs/{job_id}/sidecars/approve:
+    post:
+      summary: Approve Sidecar
+      operationId: approve_sidecar_api_v1_jobs__job_id__sidecars_approve_post
+      parameters:
+      - name: job_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Job Id
+      - name: X-CSRF-Token
+        in: header
+        required: true
+        schema:
+          type: string
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 16
+          maxLength: 128
+      - name: Origin
+        in: header
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SidecarApproval'
+      responses:
+        '202':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                title: Response Approve Sidecar Api V1 Jobs  Job Id  Sidecars Approve
+                  Post
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - session: []
+  /api/v1/library/assets/{asset_id}/normalization-plan:
+    post:
+      summary: Normalization Plan
+      operationId: normalization_plan_api_v1_library_assets__asset_id__normalization_plan_post
+      parameters:
+      - name: asset_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Asset Id
+      - name: X-CSRF-Token
+        in: header
+        required: true
+        schema:
+          type: string
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 16
+          maxLength: 128
+      - name: Origin
+        in: header
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NormalizeReview'
+      responses:
+        '202':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                title: Response Normalization Plan Api V1 Library Assets  Asset Id  Normalization
+                  Plan Post
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - session: []
+  /api/v1/library/normalization-plans/{plan_id}/approve:
+    post:
+      summary: Approve Normalization
+      operationId: approve_normalization_api_v1_library_normalization_plans__plan_id__approve_post
+      parameters:
+      - name: plan_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Plan Id
+      - name: X-CSRF-Token
+        in: header
+        required: true
+        schema:
+          type: string
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 16
+          maxLength: 128
+      - name: Origin
+        in: header
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlanAction'
+      responses:
+        '202':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                title: Response Approve Normalization Api V1 Library Normalization
+                  Plans  Plan Id  Approve Post
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - session: []
+  /api/v1/library/assets/{asset_id}/bg-evidence:
+    post:
+      summary: Asset Bg Evidence
+      operationId: asset_bg_evidence_api_v1_library_assets__asset_id__bg_evidence_post
+      parameters:
+      - name: asset_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Asset Id
+      - name: X-CSRF-Token
+        in: header
+        required: true
+        schema:
+          type: string
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 16
+          maxLength: 128
+      - name: Origin
+        in: header
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssetEvidence'
+      responses:
+        '202':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                title: Response Asset Bg Evidence Api V1 Library Assets  Asset Id  Bg
+                  Evidence Post
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - session: []
+  /api/v1/subtitles/{candidate_id}/download:
+    post:
+      summary: Download Subtitle
+      operationId: download_subtitle_api_v1_subtitles__candidate_id__download_post
+      parameters:
+      - name: candidate_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Candidate Id
+      - name: X-CSRF-Token
+        in: header
+        required: true
+        schema:
+          type: string
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 16
+          maxLength: 128
+      - name: Origin
+        in: header
+        required: true
+        schema:
+          type: string
+      responses:
+        '202':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                title: Response Download Subtitle Api V1 Subtitles  Candidate Id  Download
+                  Post
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - session: []
+  /api/v1/library/analytics:
+    get:
+      summary: Analytics
+      operationId: analytics_api_v1_library_analytics_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                additionalProperties: true
+                type: object
+                title: Response Analytics Api V1 Library Analytics Get
+      security:
+      - session: []
+  /api/v1/library/scans:
+    post:
+      summary: Scan
+      operationId: scan_api_v1_library_scans_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Scope'
+        required: true
+      responses:
+        '202':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                additionalProperties: true
+                type: object
+                title: Response Scan Api V1 Library Scans Post
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - session: []
+      parameters:
+      - name: X-CSRF-Token
+        in: header
+        required: true
+        schema:
+          type: string
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 16
+          maxLength: 128
+      - name: Origin
+        in: header
+        required: true
+        schema:
+          type: string
+  /api/v1/library/scans/{scan_id}:
+    get:
+      summary: Scan Status
+      operationId: scan_status_api_v1_library_scans__scan_id__get
+      parameters:
+      - name: scan_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Scan Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                title: Response Scan Status Api V1 Library Scans  Scan Id  Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - session: []
+  /api/v1/library/policies:
+    get:
+      summary: Policies
+      operationId: policies_api_v1_library_policies_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                additionalProperties: true
+                type: object
+                title: Response Policies Api V1 Library Policies Get
+      security:
+      - session: []
+    post:
+      summary: Save Policy
+      operationId: save_policy_api_v1_library_policies_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PolicyInput'
+        required: true
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                additionalProperties: true
+                type: object
+                title: Response Save Policy Api V1 Library Policies Post
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - session: []
+      parameters:
+      - name: X-CSRF-Token
+        in: header
+        required: true
+        schema:
+          type: string
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 16
+          maxLength: 128
+      - name: Origin
+        in: header
+        required: true
+        schema:
+          type: string
+  /api/v1/library/policies/preview:
+    post:
+      summary: Preview
+      operationId: preview_api_v1_library_policies_preview_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PolicyPreview'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+                title: Response Preview Api V1 Library Policies Preview Post
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - session: []
+      parameters:
+      - name: X-CSRF-Token
+        in: header
+        required: true
+        schema:
+          type: string
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 16
+          maxLength: 128
+      - name: Origin
+        in: header
+        required: true
+        schema:
+          type: string
+  /api/v1/library/assets/{asset_id}/identity-candidates:
+    get:
+      summary: Identity Candidates
+      operationId: identity_candidates_api_v1_library_assets__asset_id__identity_candidates_get
+      parameters:
+      - name: asset_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Asset Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                title: Response Identity Candidates Api V1 Library Assets  Asset Id  Identity
+                  Candidates Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - session: []
+  /api/v1/library/assets/{asset_id}/identity:
+    post:
+      summary: Identity
+      operationId: identity_api_v1_library_assets__asset_id__identity_post
+      parameters:
+      - name: asset_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Asset Id
+      - name: X-CSRF-Token
+        in: header
+        required: true
+        schema:
+          type: string
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 16
+          maxLength: 128
+      - name: Origin
+        in: header
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IdentityInput'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                title: Response Identity Api V1 Library Assets  Asset Id  Identity
+                  Post
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - session: []
+  /api/v1/library/normalizations/plans:
+    post:
+      summary: Normalize Plan
+      operationId: NORMALIZE_plan_api_v1_library_normalizations_plans_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Scope'
+        required: true
+      responses:
+        '202':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                additionalProperties: true
+                type: object
+                title: Response Normalize Plan Api V1 Library Normalizations Plans
+                  Post
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - session: []
+      parameters:
+      - name: X-CSRF-Token
+        in: header
+        required: true
+        schema:
+          type: string
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 16
+          maxLength: 128
+      - name: Origin
+        in: header
+        required: true
+        schema:
+          type: string
+  /api/v1/library/normalizations/{job_id}:
+    get:
+      summary: Normalize Status
+      operationId: NORMALIZE_status_api_v1_library_normalizations__job_id__get
+      parameters:
+      - name: job_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Job Id
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 500
+          minimum: 1
+          default: 100
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+          title: Offset
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                title: Response Normalize Status Api V1 Library Normalizations  Job
+                  Id  Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - session: []
+  /api/v1/library/normalizations/{job_id}/approve:
+    post:
+      summary: Normalize Approve
+      operationId: NORMALIZE_approve_api_v1_library_normalizations__job_id__approve_post
+      parameters:
+      - name: job_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Job Id
+      - name: X-CSRF-Token
+        in: header
+        required: true
+        schema:
+          type: string
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 16
+          maxLength: 128
+      - name: Origin
+        in: header
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Approval'
+      responses:
+        '202':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                title: Response Normalize Approve Api V1 Library Normalizations  Job
+                  Id  Approve Post
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - session: []
+  /api/v1/library/normalizations/{job_id}/{action}:
+    post:
+      summary: Normalize Control
+      operationId: NORMALIZE_control_api_v1_library_normalizations__job_id___action__post
+      parameters:
+      - name: job_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Job Id
+      - name: action
+        in: path
+        required: true
+        schema:
+          enum:
+          - pause
+          - resume
+          - cancel
+          - retry
+          type: string
+          title: Action
+      - name: X-CSRF-Token
+        in: header
+        required: true
+        schema:
+          type: string
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 16
+          maxLength: 128
+      - name: Origin
+        in: header
+        required: true
+        schema:
+          type: string
+      responses:
+        '202':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                title: Response Normalize Control Api V1 Library Normalizations  Job
+                  Id   Action  Post
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - session: []
+  /api/v1/library/quarantines/plans:
+    post:
+      summary: Quarantine Plan
+      operationId: QUARANTINE_plan_api_v1_library_quarantines_plans_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Scope'
+        required: true
+      responses:
+        '202':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                additionalProperties: true
+                type: object
+                title: Response Quarantine Plan Api V1 Library Quarantines Plans Post
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - session: []
+      parameters:
+      - name: X-CSRF-Token
+        in: header
+        required: true
+        schema:
+          type: string
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 16
+          maxLength: 128
+      - name: Origin
+        in: header
+        required: true
+        schema:
+          type: string
+  /api/v1/library/quarantines/{job_id}:
+    get:
+      summary: Quarantine Status
+      operationId: QUARANTINE_status_api_v1_library_quarantines__job_id__get
+      parameters:
+      - name: job_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Job Id
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 500
+          minimum: 1
+          default: 100
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+          title: Offset
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                title: Response Quarantine Status Api V1 Library Quarantines  Job
+                  Id  Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - session: []
+  /api/v1/library/quarantines/{job_id}/approve:
+    post:
+      summary: Quarantine Approve
+      operationId: QUARANTINE_approve_api_v1_library_quarantines__job_id__approve_post
+      parameters:
+      - name: job_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Job Id
+      - name: X-CSRF-Token
+        in: header
+        required: true
+        schema:
+          type: string
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 16
+          maxLength: 128
+      - name: Origin
+        in: header
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Approval'
+      responses:
+        '202':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                title: Response Quarantine Approve Api V1 Library Quarantines  Job
+                  Id  Approve Post
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - session: []
+  /api/v1/library/quarantines/{job_id}/{action}:
+    post:
+      summary: Quarantine Control
+      operationId: QUARANTINE_control_api_v1_library_quarantines__job_id___action__post
+      parameters:
+      - name: job_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Job Id
+      - name: action
+        in: path
+        required: true
+        schema:
+          enum:
+          - pause
+          - resume
+          - cancel
+          - retry
+          type: string
+          title: Action
+      - name: X-CSRF-Token
+        in: header
+        required: true
+        schema:
+          type: string
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 16
+          maxLength: 128
+      - name: Origin
+        in: header
+        required: true
+        schema:
+          type: string
+      responses:
+        '202':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                title: Response Quarantine Control Api V1 Library Quarantines  Job
+                  Id   Action  Post
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - session: []
+  /api/v1/library/deletions/plans:
+    post:
+      summary: Delete Plan
+      operationId: DELETE_plan_api_v1_library_deletions_plans_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Scope'
+        required: true
+      responses:
+        '202':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                additionalProperties: true
+                type: object
+                title: Response Delete Plan Api V1 Library Deletions Plans Post
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - session: []
+      parameters:
+      - name: X-CSRF-Token
+        in: header
+        required: true
+        schema:
+          type: string
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 16
+          maxLength: 128
+      - name: Origin
+        in: header
+        required: true
+        schema:
+          type: string
+  /api/v1/library/deletions/{job_id}:
+    get:
+      summary: Delete Status
+      operationId: DELETE_status_api_v1_library_deletions__job_id__get
+      parameters:
+      - name: job_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Job Id
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 500
+          minimum: 1
+          default: 100
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+          title: Offset
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                title: Response Delete Status Api V1 Library Deletions  Job Id  Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - session: []
+  /api/v1/library/deletions/{job_id}/approve:
+    post:
+      summary: Delete Approve
+      operationId: DELETE_approve_api_v1_library_deletions__job_id__approve_post
+      parameters:
+      - name: job_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Job Id
+      - name: X-CSRF-Token
+        in: header
+        required: true
+        schema:
+          type: string
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 16
+          maxLength: 128
+      - name: Origin
+        in: header
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Approval'
+      responses:
+        '202':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                title: Response Delete Approve Api V1 Library Deletions  Job Id  Approve
+                  Post
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - session: []
+  /api/v1/library/deletions/{job_id}/{action}:
+    post:
+      summary: Delete Control
+      operationId: DELETE_control_api_v1_library_deletions__job_id___action__post
+      parameters:
+      - name: job_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Job Id
+      - name: action
+        in: path
+        required: true
+        schema:
+          enum:
+          - pause
+          - resume
+          - cancel
+          - retry
+          type: string
+          title: Action
+      - name: X-CSRF-Token
+        in: header
+        required: true
+        schema:
+          type: string
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 16
+          maxLength: 128
+      - name: Origin
+        in: header
+        required: true
+        schema:
+          type: string
+      responses:
+        '202':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                title: Response Delete Control Api V1 Library Deletions  Job Id   Action  Post
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - session: []
+  /api/v1/library/quarantines/restores:
+    post:
+      summary: Bulk Restore
+      operationId: bulk_restore_api_v1_library_quarantines_restores_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RestoreScope'
+        required: true
+      responses:
+        '202':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                additionalProperties: true
+                type: object
+                title: Response Bulk Restore Api V1 Library Quarantines Restores Post
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - session: []
+      parameters:
+      - name: X-CSRF-Token
+        in: header
+        required: true
+        schema:
+          type: string
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 16
+          maxLength: 128
+      - name: Origin
+        in: header
+        required: true
+        schema:
+          type: string
+  /api/v1/library/quarantine/restores/{job_id}/retry:
+    post:
+      summary: Retry Restore
+      operationId: retry_restore_api_v1_library_quarantine_restores__job_id__retry_post
+      parameters:
+      - name: job_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Job Id
+      - name: X-CSRF-Token
+        in: header
+        required: true
+        schema:
+          type: string
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 16
+          maxLength: 128
+      - name: Origin
+        in: header
+        required: true
+        schema:
+          type: string
+      responses:
+        '202':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                title: Response Retry Restore Api V1 Library Quarantine Restores  Job
+                  Id  Retry Post
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - session: []
+  /api/v1/library/assets/{asset_id}/subtitles/accept:
+    post:
+      summary: Accept Subtitle
+      operationId: accept_subtitle_api_v1_library_assets__asset_id__subtitles_accept_post
+      parameters:
+      - name: asset_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Asset Id
+      - name: X-CSRF-Token
+        in: header
+        required: true
+        schema:
+          type: string
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 16
+          maxLength: 128
+      - name: Origin
+        in: header
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubtitleAccept'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                title: Response Accept Subtitle Api V1 Library Assets  Asset Id  Subtitles
+                  Accept Post
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - session: []
+  /api/v1/library/assets/{asset_id}/subtitles/versions:
+    get:
+      summary: Versions
+      operationId: versions_api_v1_library_assets__asset_id__subtitles_versions_get
+      parameters:
+      - name: asset_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Asset Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                title: Response Versions Api V1 Library Assets  Asset Id  Subtitles
+                  Versions Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - session: []
+  /api/v1/library/assets/{asset_id}/subtitles/versions/{generation}/restore:
+    post:
+      summary: Restore Subtitle
+      operationId: restore_subtitle_api_v1_library_assets__asset_id__subtitles_versions__generation__restore_post
+      parameters:
+      - name: asset_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Asset Id
+      - name: generation
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Generation
+      - name: X-CSRF-Token
+        in: header
+        required: true
+        schema:
+          type: string
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 16
+          maxLength: 128
+      - name: Origin
+        in: header
+        required: true
+        schema:
+          type: string
+      responses:
+        '202':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                title: Response Restore Subtitle Api V1 Library Assets  Asset Id  Subtitles
+                  Versions  Generation  Restore Post
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - session: []
+components:
+  schemas:
+    Approval:
+      properties:
+        plan_revision:
+          type: integer
+          minimum: 1.0
+          title: Plan Revision
+        plan_sha256:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+          title: Plan Sha256
+        confirmed:
+          type: boolean
+          title: Confirmed
+      additionalProperties: false
+      type: object
+      required:
+      - plan_revision
+      - plan_sha256
+      - confirmed
+      title: Approval
+    AssetEvidence:
+      properties:
+        fingerprint:
+          type: string
+          pattern: ^[0-9a-f]{64}$
+          title: Fingerprint
+        stream_key:
+          type: string
+          pattern: ^[0-9a-f]{64}$
+          title: Stream Key
+        action:
+          type: string
+          enum:
+          - verify
+          - revoke
+          title: Action
+        reason:
+          type: string
+          maxLength: 1000
+          minLength: 1
+          title: Reason
+      additionalProperties: false
+      type: object
+      required:
+      - fingerprint
+      - stream_key
+      - action
+      - reason
+      title: AssetEvidence
+    Credentials:
+      properties:
+        username:
+          type: string
+          maxLength: 80
+          minLength: 1
+          pattern: ^[a-zA-Z0-9_.-]+$
+          title: Username
+        password:
+          type: string
+          format: password
+          title: Password
+          writeOnly: true
+      additionalProperties: false
+      type: object
+      required:
+      - username
+      - password
+      title: Credentials
+    Evidence:
+      properties:
+        fingerprint:
+          type: string
+          pattern: ^[0-9a-f]{64}$
+          title: Fingerprint
+        stream_key:
+          type: string
+          pattern: ^[0-9a-f]{64}$
+          title: Stream Key
+        action:
+          type: string
+          enum:
+          - verify
+          - revoke
+          title: Action
+        reason:
+          type: string
+          maxLength: 1000
+          minLength: 1
+          title: Reason
+        item_id:
+          type: string
+          format: uuid
+          title: Item Id
+      additionalProperties: false
+      type: object
+      required:
+      - fingerprint
+      - stream_key
+      - action
+      - reason
+      - item_id
+      title: Evidence
+    HTTPValidationError:
+      properties:
+        detail:
+          items:
+            $ref: '#/components/schemas/ValidationError'
+          type: array
+          title: Detail
+      type: object
+      title: HTTPValidationError
+    IdentityInput:
+      properties:
+        expected_revision:
+          type: integer
+          minimum: 1.0
+          title: Expected Revision
+        identity:
+          additionalProperties: true
+          type: object
+          title: Identity
+      additionalProperties: false
+      type: object
+      required:
+      - expected_revision
+      - identity
+      title: IdentityInput
+    NormalizeReview:
+      properties:
+        identity:
+          additionalProperties: true
+          type: object
+          title: Identity
+        quality_label:
+          type: string
+          maxLength: 80
+          minLength: 1
+          title: Quality Label
+        reason:
+          type: string
+          maxLength: 1000
+          minLength: 1
+          title: Reason
+      additionalProperties: false
+      type: object
+      required:
+      - identity
+      - quality_label
+      - reason
+      title: NormalizeReview
+    PlanAction:
+      properties:
+        plan_revision:
+          type: integer
+          minimum: 1.0
+          title: Plan Revision
+        plan_sha256:
+          type: string
+          pattern: ^[0-9a-f]{64}$
+          title: Plan Sha256
+        reason:
+          type: string
+          maxLength: 1000
+          minLength: 1
+          title: Reason
+      additionalProperties: false
+      type: object
+      required:
+      - plan_revision
+      - plan_sha256
+      - reason
+      title: PlanAction
+    PolicyInput:
+      properties:
+        expected_revision:
+          type: integer
+          minimum: 0.0
+          title: Expected Revision
+        policy:
+          additionalProperties: true
+          type: object
+          title: Policy
+      additionalProperties: false
+      type: object
+      required:
+      - expected_revision
+      - policy
+      title: PolicyInput
+    PolicyPreview:
+      properties:
+        policy:
+          additionalProperties: true
+          type: object
+          title: Policy
+        category:
+          type: string
+          title: Category
+        identity:
+          additionalProperties: true
+          type: object
+          title: Identity
+        data:
+          additionalProperties: true
+          type: object
+          title: Data
+        path:
+          type: string
+          title: Path
+          default: preview.mkv
+      additionalProperties: false
+      type: object
+      required:
+      - policy
+      - category
+      - identity
+      title: PolicyPreview
+    RestoreScope:
+      properties:
+        manifest_ids:
+          items:
+            type: string
+            format: uuid
+          type: array
+          maxItems: 10000
+          minItems: 1
+          title: Manifest Ids
+        confirmed:
+          type: boolean
+          title: Confirmed
+      additionalProperties: false
+      type: object
+      required:
+      - manifest_ids
+      - confirmed
+      title: RestoreScope
+    Review:
+      properties:
+        expected_revision:
+          type: integer
+          minimum: 0.0
+          title: Expected Revision
+        item_id:
+          type: string
+          format: uuid
+          title: Item Id
+        material_improvement_verified:
+          type: boolean
+          title: Material Improvement Verified
+          default: false
+        identity:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Identity
+        quality_decision:
+          anyOf:
+          - type: string
+            enum:
+            - KeepBoth
+            - KeepBGPreferred
+            - PreferBetterBG
+            - NeedsReview
+            - Skip
+          - type: 'null'
+          title: Quality Decision
+        reason:
+          type: string
+          maxLength: 1000
+          minLength: 1
+          title: Reason
+      additionalProperties: false
+      type: object
+      required:
+      - expected_revision
+      - item_id
+      - reason
+      title: Review
+    Scope:
+      properties:
+        asset_ids:
+          items:
+            type: string
+            format: uuid
+          type: array
+          maxItems: 10000
+          title: Asset Ids
+        category:
+          anyOf:
+          - type: string
+            enum:
+            - movies
+            - series
+            - animations
+            - documentaries
+            - concerts
+          - type: 'null'
+          title: Category
+        all:
+          type: boolean
+          title: All
+          default: false
+      additionalProperties: false
+      type: object
+      title: Scope
+    Setup:
+      properties:
+        username:
+          type: string
+          maxLength: 80
+          minLength: 1
+          pattern: ^[a-zA-Z0-9_.-]+$
+          title: Username
+        password:
+          type: string
+          format: password
+          title: Password
+          writeOnly: true
+        setup_token:
+          type: string
+          format: password
+          title: Setup Token
+          writeOnly: true
+      additionalProperties: false
+      type: object
+      required:
+      - username
+      - password
+      - setup_token
+      title: Setup
+    SidecarApproval:
+      properties:
+        plan_revision:
+          type: integer
+          minimum: 1.0
+          title: Plan Revision
+        plan_sha256:
+          type: string
+          pattern: ^[0-9a-f]{64}$
+          title: Plan Sha256
+        reason:
+          type: string
+          maxLength: 1000
+          minLength: 1
+          title: Reason
+        relative_path:
+          type: string
+          maxLength: 900
+          minLength: 1
+          title: Relative Path
+        observed_sha256:
+          type: string
+          pattern: ^[0-9a-f]{64}$
+          title: Observed Sha256
+      additionalProperties: false
+      type: object
+      required:
+      - plan_revision
+      - plan_sha256
+      - reason
+      - relative_path
+      - observed_sha256
+      title: SidecarApproval
+    SubtitleAccept:
+      properties:
+        asset_revision:
+          type: integer
+          minimum: 1.0
+          title: Asset Revision
+        fingerprint:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+          title: Fingerprint
+        content:
+          type: string
+          maxLength: 1048576
+          minLength: 1
+          title: Content
+        edition:
+          type: string
+          title: Edition
+        fps:
+          anyOf:
+          - type: number
+            maximum: 240.0
+            exclusiveMinimum: 0.0
+          - type: 'null'
+          title: Fps
+        duration:
+          type: number
+          exclusiveMinimum: 0.0
+          title: Duration
+        language:
+          type: string
+          const: bg
+          title: Language
+          default: bg
+        kind:
+          type: string
+          enum:
+          - normal
+          - forced
+          - sdh
+          title: Kind
+          default: normal
+        complete:
+          type: boolean
+          title: Complete
+        timing_confirmed:
+          type: boolean
+          title: Timing Confirmed
+        source_quality:
+          type: string
+          enum:
+          - reviewed
+          - unknown
+          title: Source Quality
+        provider:
+          type: string
+          maxLength: 80
+          minLength: 1
+          title: Provider
+        release:
+          type: string
+          maxLength: 200
+          minLength: 1
+          title: Release
+      additionalProperties: false
+      type: object
+      required:
+      - asset_revision
+      - fingerprint
+      - content
+      - edition
+      - duration
+      - complete
+      - timing_confirmed
+      - source_quality
+      - provider
+      - release
+      title: SubtitleAccept
+    SubtitleReview:
+      properties:
+        item_id:
+          type: string
+          format: uuid
+          title: Item Id
+        fingerprint:
+          type: string
+          pattern: ^[0-9a-f]{64}$
+          title: Fingerprint
+        edition:
+          type: string
+          maxLength: 120
+          minLength: 1
+          title: Edition
+        content:
+          type: string
+          maxLength: 1048576
+          minLength: 1
+          title: Content
+        timing_confirmed:
+          type: boolean
+          title: Timing Confirmed
+        reason:
+          type: string
+          maxLength: 1000
+          minLength: 1
+          title: Reason
+      additionalProperties: false
+      type: object
+      required:
+      - item_id
+      - fingerprint
+      - edition
+      - content
+      - timing_confirmed
+      - reason
+      title: SubtitleReview
+    SubtitleSync:
+      properties:
+        content:
+          type: string
+          maxLength: 1048576
+          minLength: 1
+          title: Content
+        offset:
+          type: number
+          maximum: 300.0
+          minimum: -300.0
+          title: Offset
+        scale:
+          type: number
+          maximum: 1.1
+          minimum: 0.9
+          title: Scale
+      additionalProperties: false
+      type: object
+      required:
+      - content
+      - offset
+      - scale
+      title: SubtitleSync
+    ValidationError:
+      properties:
+        loc:
+          items:
+            anyOf:
+            - type: string
+            - type: integer
+          type: array
+          title: Location
+        msg:
+          type: string
+          title: Message
+        type:
+          type: string
+          title: Error Type
+        input:
+          title: Input
+        ctx:
+          type: object
+          title: Context
+      type: object
+      required:
+      - loc
+      - msg
+      - type
+      title: ValidationError
+  securitySchemes:
+    session:
+      type: apiKey
+      in: cookie
+      name: vimag_session

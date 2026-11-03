@@ -1,0 +1,4 @@
+# Install only after deployment/backups have passed the host gates.
+# Run as the private deployment operator; keep an independent weekly off-disk copy.
+17 3 * * * cd /home/veso/docker/media-manager && sh scripts/backup.sh /home/veso/docker/media-manager/backups >> logs/backup.log 2>&1
+# No automatic backup, library or quarantine deletion is configured by this example.
