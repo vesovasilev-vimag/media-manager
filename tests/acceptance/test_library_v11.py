@@ -209,6 +209,35 @@ def test_SCAN_incremental_missing_reappears_and_failed_scope(
     assert not qbt.commands
 
 
+def test_SCAN_legacy_catalogue_bootstrap_reuses_historical_probe(
+    stack: Any, monkeypatch: Any
+) -> None:
+    from app import inventory
+
+    worker, _, _, _ = stack
+    db = worker.db
+    original = asset(db)
+    source = db.config.nas_root / "Library" / original["relative_path"]
+    calls = []
+    worker.probe = lambda path: calls.append(path) or synthetic_probe(path)
+
+    def must_not_hash(_path: Path) -> str:
+        raise AssertionError("legacy same-size catalogue file must not be rehashed")
+
+    monkeypatch.setattr(inventory, "sha256", must_not_hash)
+    client = login(db)
+    result = post(client, "/library/scans", {"category": "movies"}).json()
+    drive(worker)
+    assert client.get("/api/v1/library/scans/" + result["id"]).json()["state"] == "COMPLETED"
+    updated = db.one(select(p.assets).where(p.assets.c.id == original["id"]))
+    assert not calls
+    assert updated["fingerprint"] == original["fingerprint"]
+    assert updated["observed_size"] == source.stat().st_size
+    assert updated["mtime_ns"] == source.stat().st_mtime_ns
+    assert updated["data"]["fingerprint_verification"] == "historical_unverified"
+    assert updated["revision"] == original["revision"]
+
+
 def test_SCAN_overlap_guard_and_policy_zero_fs_changes(stack: Any) -> None:
     db = stack[0].db
     client = login(db)
