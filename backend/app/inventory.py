@@ -256,7 +256,8 @@ def execute(worker: Any, task: dict[str, Any]) -> None:
                                         .where(p.assets.c.id == prior["id"])
                                         .values(
                                             **values,
-                                            revision=prior["revision"] + (0 if cached else 1),
+                                            revision=prior["revision"]
+                                            + (0 if cached or legacy_cached else 1),
                                         )
                                     )
                                 else:

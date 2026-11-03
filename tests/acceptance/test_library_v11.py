@@ -155,57 +155,94 @@ def test_LIB_unknown_size_and_missing_streams_are_not_absence(db: p.Database) ->
 def test_SCAN_incremental_missing_reappears_and_failed_scope(
     stack: Any, monkeypatch: Any
 ) -> None:
-    worker, qbt, _, _ = stack
-    db = worker.db
-    a = asset(db)
-    client = login(db)
-    calls = []
-    original = worker.probe
-    worker.probe = lambda path: (calls.append(path), original(path))[1]
-    for expected in [1, 1]:
-        result = post(client, "/library/scans", {"category": "movies"}).json()
-        drive(worker)
-        assert (
-            client.get("/api/v1/library/scans/" + result["id"]).json()["state"]
-            == "COMPLETED"
-        )
-        assert len(calls) == expected
-    path = db.config.nas_root / "Library" / a["relative_path"]
-    path.write_bytes(b"changed-synthetic-content")
-    post(client, "/library/scans", {"category": "movies"})
-    drive(worker)
-    assert len(calls) == 2
-    # Fast re-scan must preserve fingerprint, identity, revision and BG decisions.
-    stable = db.one(select(p.assets).where(p.assets.c.id == a["id"]))
-    result = post(client, "/library/scans", {"category": "movies"}).json()
-    drive(worker)
-    assert (
-        client.get("/api/v1/library/scans/" + result["id"]).json()["state"]
-        == "COMPLETED"
-    )
-    after = db.one(select(p.assets).where(p.assets.c.id == a["id"]))
-    assert after["fingerprint"] == stable["fingerprint"]
-    assert after["revision"] == stable["revision"]
-    assert after["data"]["identity"] == stable["data"]["identity"]
-    assert len(calls) == 2
-    path.unlink()
-    post(client, "/library/scans", {"category": "movies"})
-    drive(worker)
-    assert db.one(select(p.assets))["availability"] == "MISSING"
-    path.write_bytes(b"reappeared-synthetic-content")
-    post(client, "/library/scans", {"category": "movies"})
-    drive(worker)
-    assert db.one(select(p.assets))["availability"] == "AVAILABLE"
     from app import inventory
 
-    monkeypatch.setattr(
-        inventory,
-        "enumerate_category",
-        lambda root: (_ for _ in ()).throw(PermissionError()),
-    )
-    post(client, "/library/scans", {"category": "movies"})
-    drive(worker)
-    assert db.one(select(p.assets))["availability"] == "AVAILABLE"
+    worker, qbt, _, _ = stack
+    db = worker.db
+    a = asset(db, data={"bg": "BG_VERIFIED"})
+    path = db.config.nas_root / "Library" / a["relative_path"]
+    client = login(db)
+    calls: list[Path] = []
+    hashes: list[Path] = []
+    original = worker.probe
+    worker.probe = lambda path: (calls.append(path), original(path))[1]
+
+    def record_hash(path: Path) -> str:
+        hashes.append(path)
+        return sha256(path)
+
+    def forbidden_qbt() -> Any:
+        raise AssertionError("Library scan must not query qBittorrent")
+
+    monkeypatch.setattr(inventory, "sha256", record_hash)
+    monkeypatch.setattr(qbt, "all", forbidden_qbt)
+
+    def scan(
+        probe_delta: int, hash_delta: int, state: str = "COMPLETED"
+    ) -> dict[str, Any]:
+        before_probes, before_hashes = len(calls), len(hashes)
+        result = post(client, "/library/scans", {"category": "movies"}).json()
+        drive(worker)
+        status = client.get("/api/v1/library/scans/" + result["id"]).json()
+        assert status["state"] == state
+        assert len(calls) - before_probes == probe_delta
+        assert len(hashes) - before_hashes == hash_delta
+        return db.one(select(p.assets).where(p.assets.c.id == a["id"]))
+
+    # Bootstrap observations from the historical probe without reading full media bytes.
+    for _ in range(2):
+        current = scan(0, 0)
+        assert current["fingerprint"] == a["fingerprint"]
+        assert current["data"]["probe"] == a["data"]["probe"]
+        assert current["data"]["identity"] == a["data"]["identity"]
+        assert current["data"]["bg"] == "BG_VERIFIED"
+        assert current["data"]["fingerprint_verification"] == "historical_unverified"
+        assert current["revision"] == a["revision"]
+
+    path.write_bytes(b"changed-synthetic-content")
+    stable = scan(1, 1)
+    assert stable["fingerprint"] == sha256(path) != a["fingerprint"]
+    assert stable["data"]["probe"] == synthetic_probe(path)
+    assert stable["data"]["fingerprint_verification"] == "verified"
+    assert stable["data"]["identity"] == a["data"]["identity"]
+    assert (
+        stable["data"]["bg"] != "BG_VERIFIED"
+    )  # Old evidence is bound to the old bytes.
+    assert stable["revision"] == a["revision"] + 1
+    # Fast re-scan must preserve fingerprint, identity, revision and BG decisions.
+    after = scan(0, 0)
+    assert after["fingerprint"] == stable["fingerprint"]
+    assert after["revision"] == stable["revision"]
+    assert after["data"] == stable["data"]
+    path.unlink()
+    missing = scan(0, 0)
+    assert missing["availability"] == "MISSING"
+    assert missing["revision"] == after["revision"] + 1
+    path.write_bytes(b"reappeared-synthetic-content")
+    reappeared = scan(1, 1)
+    assert reappeared["availability"] == "AVAILABLE"
+    assert reappeared["fingerprint"] == sha256(path) != after["fingerprint"]
+    assert reappeared["data"]["probe"] == synthetic_probe(path)
+    assert reappeared["revision"] == missing["revision"] + 1
+    # An incomplete enumeration cannot prove absence, even when the file is missing.
+    path.unlink()
+    with monkeypatch.context() as failed_scope:
+        failed_scope.setattr(
+            inventory,
+            "enumerate_category",
+            lambda root: (_ for _ in ()).throw(PermissionError()),
+        )
+        failed = scan(0, 0, "COMPLETED_WITH_ERRORS")
+    assert failed["availability"] == "AVAILABLE"
+    assert failed["revision"] == reappeared["revision"]
+    assert failed["data"] == reappeared["data"]
+    # Once enumeration recovers, absence and reappearance are validated again.
+    assert scan(0, 0)["availability"] == "MISSING"
+    path.write_bytes(b"recovered-synthetic-content")
+    recovered = scan(1, 1)
+    assert recovered["availability"] == "AVAILABLE"
+    assert recovered["fingerprint"] == sha256(path)
+    assert scan(0, 0)["revision"] == recovered["revision"]
     assert not qbt.commands
 
 
@@ -237,14 +274,21 @@ def test_SCAN_does_not_contact_qbt_and_preserves_existing_dependencies(
     assert current["data"]["dependencies"] == ["existing-torrent-ref"]
 
 
+@pytest.mark.parametrize("bg", ["NO_BG", "BG_VERIFIED"])
 def test_SCAN_legacy_catalogue_bootstrap_reuses_historical_probe(
-    stack: Any, monkeypatch: Any
+    stack: Any, monkeypatch: Any, bg: str
 ) -> None:
     from app import inventory
 
     worker, _, _, _ = stack
     db = worker.db
-    original = asset(db)
+    original = asset(
+        db,
+        data={
+            "bg": bg,
+            "identity": {"title": "Manual title", "year": 2021, "confirmed": True},
+        },
+    )
     source = db.config.nas_root / "Library" / original["relative_path"]
     calls = []
     worker.probe = lambda path: calls.append(path) or synthetic_probe(path)
@@ -267,6 +311,69 @@ def test_SCAN_legacy_catalogue_bootstrap_reuses_historical_probe(
     assert updated["mtime_ns"] == source.stat().st_mtime_ns
     assert updated["data"]["fingerprint_verification"] == "historical_unverified"
     assert updated["revision"] == original["revision"]
+    assert updated["data"]["identity"] == original["data"]["identity"]
+    assert updated["data"]["bg"] == bg
+    assert updated["data"]["probe"] == original["data"]["probe"]
+    result = post(client, "/library/scans", {"category": "movies"}).json()
+    drive(worker)
+    assert (
+        client.get("/api/v1/library/scans/" + result["id"]).json()["state"]
+        == "COMPLETED"
+    )
+    unchanged = db.one(select(p.assets).where(p.assets.c.id == original["id"]))
+    assert not calls
+    assert unchanged["revision"] == original["revision"]
+    assert unchanged["fingerprint"] == original["fingerprint"]
+    assert unchanged["data"] == updated["data"]
+
+
+@pytest.mark.parametrize("kind", ["normalizations", "quarantines", "deletions"])
+def test_SCAN_historical_fingerprint_rehashed_before_mutation_plan(
+    stack: Any, monkeypatch: Any, kind: str
+) -> None:
+    from app import bulk, inventory
+
+    worker, *_ = stack
+    db = worker.db
+    original = asset(db, fingerprint="0" * 64)
+    source = db.config.nas_root / "Library" / original["relative_path"]
+    content = source.read_bytes()
+
+    def must_not_hash(_path: Path) -> str:
+        raise AssertionError(
+            "Inventory must reuse the historical same-size fingerprint"
+        )
+
+    monkeypatch.setattr(inventory, "sha256", must_not_hash)
+    client = login(db)
+    result = post(client, "/library/scans", {"category": "movies"}).json()
+    drive(worker)
+    assert (
+        client.get("/api/v1/library/scans/" + result["id"]).json()["state"]
+        == "COMPLETED"
+    )
+    cached = db.one(select(p.assets).where(p.assets.c.id == original["id"]))
+    assert cached["fingerprint"] == original["fingerprint"]
+    assert cached["data"]["fingerprint_verification"] == "historical_unverified"
+    hashes: list[Path] = []
+
+    def record_hash(path: Path) -> str:
+        hashes.append(path)
+        return sha256(path)
+
+    monkeypatch.setattr(bulk, "sha256", record_hash)
+    proposed = plan(stack, client, kind, [original["id"]])
+    assert source in hashes
+    assert proposed["counts"] == {"NeedsReview": 1}
+    file = db.one(
+        select(p.maintenance_files).where(
+            p.maintenance_files.c.job_id == proposed["id"]
+        )
+    )
+    assert file["data"]["error_code"] == "ASSET_CHANGED"
+    assert source.read_bytes() == content
+    assert not db.rows(select(p.operations))
+    assert not db.rows(select(p.tombstones))
 
 
 def test_SCAN_overlap_guard_and_policy_zero_fs_changes(stack: Any) -> None:
