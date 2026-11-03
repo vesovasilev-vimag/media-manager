@@ -16,6 +16,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from app import persistence as p
 from app.domain import CATEGORIES, STEPS, GateError, digest, safe_note
+from app.ops import operational_status
 from app.settings import Settings
 
 HASHER = PasswordHasher(time_cost=3, memory_cost=65536, parallelism=4)
@@ -99,7 +100,7 @@ def create_app(config: Settings | None = None, database: p.Database | None = Non
     db = database or p.Database(cfg)
     app = FastAPI(
         title="ViMag Media Manager",
-        version="1.1.0-dev",
+        version="1.1.0",
         docs_url=None,
         redoc_url=None,
         openapi_url=None,
@@ -232,7 +233,7 @@ def create_app(config: Settings | None = None, database: p.Database | None = Non
 
     @app.get("/api/v1/health/live")
     def live() -> dict[str, Any]:
-        return {"alive": True, "version": "1.1.0-dev"}
+        return {"alive": True, "version": "1.1.0"}
 
     @app.post("/api/v1/auth/setup", status_code=201)
     def setup(body: Setup, request: Request) -> dict[str, bool]:
@@ -353,6 +354,7 @@ def create_app(config: Settings | None = None, database: p.Database | None = Non
             "worker": value,
             "write_enabled": cfg.write_enabled,
             "automatic_intake": cfg.automatic_intake,
+            "production_authorized": operational_status(db)["production_authorized"],
         }
 
     @app.get("/api/v1/dashboard", dependencies=[Depends(admin)])
@@ -703,7 +705,7 @@ def create_app(config: Settings | None = None, database: p.Database | None = Non
             ),
             "write_enabled": cfg.write_enabled,
             "categories": CATEGORIES,
-            "version": "1.1.0-dev",
+            "version": "1.1.0",
         }
 
     @app.put("/api/v1/settings/{section}", status_code=202)

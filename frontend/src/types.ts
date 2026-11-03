@@ -96,5 +96,6 @@ export interface Health {
   schema: string;
   write_enabled: boolean;
   automatic_intake: boolean;
+  production_authorized?: boolean;
   worker: Record<string, unknown>;
 }

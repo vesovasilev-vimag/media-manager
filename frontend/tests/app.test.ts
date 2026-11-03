@@ -51,7 +51,7 @@ describe("session and seven real API screens", () => {
       await flushPromises();
       expect(wrapper.find("h1").text()).toBe(button.text());
     }
-    expect(wrapper.text()).toContain("READ ONLY");
+    expect(wrapper.text()).toContain("Операции неактивни");
     expect(
       fetcher.mock.calls.some(([url]) => url.includes("/library/duplicates")),
     ).toBe(true);
