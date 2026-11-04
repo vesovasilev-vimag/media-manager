@@ -30,3 +30,7 @@ This documentation branch is **documentation-only**, not a Codex implementation 
 - **v1.0**: immutable RC1 release + historical approved source documents; do not overwrite.
 - **v1.1**: additive versioned documentation and wireframes under `docs/v1.1/` and `wireframes/v1.1/`.
 - `spec.1` is a documentation baseline, **not** a release version, image build or deployment approval.
+
+## Current Library UX reference (PR #12)
+
+Use [Library interactive wireframe v1.2](../../wireframes/vimag-media-manager-library-v1.2.html) alongside [Library dashboard specifications](library-dashboard.md) and [English naming](english-naming.md) for current Library designs. The [full-product v1.0 wireframe](../../wireframes/vimag-media-manager-v1.0.html) is historical for the Library area; its old demo explorer must not be treated as the latest Library UX contract. No merge, image publication, deploy, or production write is authorized by this documentation update.
