@@ -69,6 +69,7 @@ def execute(worker: Any, task: dict[str, Any]) -> None:
     pending_progress = 0
 
     def progress(state: str) -> None:
+        summary["checkpoint_at"] = p.now().isoformat()
         with db.transaction() as conn:
             db.assert_lease(conn, task)
             conn.execute(

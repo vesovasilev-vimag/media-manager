@@ -35,7 +35,7 @@ class Remote:
         self.http = httpx.Client(
             base_url=base.rstrip("/") + "/",
             headers=headers,
-            timeout=httpx.Timeout(20, connect=5),
+            timeout=httpx.Timeout(connect=5, read=20, write=20, pool=5),
             follow_redirects=False,
             transport=transport,
             trust_env=False,
@@ -46,6 +46,8 @@ class Remote:
             raise GateError(self.name + "_RETRY_LATER", "FailedRecoverable")
         try:
             response = self.http.request(method, path.lstrip("/"), **kwargs)
+        except httpx.TimeoutException:
+            raise GateError(self.name + "_TIMEOUT", "BlockedExternalDependency") from None
         except httpx.HTTPError:
             raise GateError(self.name + "_UNAVAILABLE", "BlockedExternalDependency") from None
         if response.status_code in {401, 403}:

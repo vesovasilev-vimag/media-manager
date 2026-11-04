@@ -1,6 +1,6 @@
 import hashlib
 import secrets
-from datetime import datetime, timedelta
+from datetime import timedelta
 from typing import Any, Literal
 from uuid import UUID
 
@@ -18,6 +18,7 @@ from app import persistence as p
 from app.domain import CATEGORIES, STEPS, GateError, digest, safe_note
 from app.ops import operational_status
 from app.settings import Settings
+from app.worker_health import observed_health
 
 HASHER = PasswordHasher(time_cost=3, memory_cost=65536, parallelism=4)
 DUMMY = HASHER.hash(secrets.token_urlsafe(32))
@@ -340,14 +341,7 @@ def create_app(config: Settings | None = None, database: p.Database | None = Non
             revision = conn.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
         health = db.rows(select(p.settings_table).where(p.settings_table.c.key == "worker_health"))
         value = health[0]["value"] if health else {"state": "UNKNOWN"}
-        age = (
-            max(0, (p.now() - datetime.fromisoformat(value["time"])).total_seconds())
-            if value.get("time")
-            else None
-        )
-        value = {**value, "heartbeat_age_seconds": age}
-        if age is not None and age > max(120, cfg.poll_seconds * 3):
-            value["state"] = "STALE"
+        value = observed_health(value)
         return {
             "database": revision == "0002",
             "schema": revision,

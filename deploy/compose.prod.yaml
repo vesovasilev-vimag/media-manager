@@ -83,9 +83,10 @@ services:
     cpus: 2
     healthcheck:
       test: [CMD, python, -m, app.ops, health]
-      interval: 30s
+      interval: 5s
       timeout: 10s
       retries: 3
+      start_period: 15s
     logging: *logging
   db:
     image: ${POSTGRES_IMAGE:?Set approved pinned postgres image digest}

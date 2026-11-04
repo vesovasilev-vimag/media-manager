@@ -3,8 +3,10 @@
 import re
 import signal
 import time
+from collections.abc import Callable
+from datetime import datetime
 from pathlib import Path, PurePosixPath
-from threading import Event, Thread
+from threading import Event, Lock, Thread
 from typing import Any
 from uuid import uuid4
 from xml.etree.ElementTree import Element, SubElement, tostring
@@ -51,6 +53,13 @@ class Worker:
         self.probe = probe_fn
         self.owner = str(uuid4())
         self.running = True
+        self._stop = Event()
+        self._status_lock = Lock()
+        self._last_dispatch = p.now().isoformat()
+        self._active_task: dict[str, Any] | None = None
+        self._providers: dict[str, Any] = {}
+        # Production polling clients have separate auth/cooldown state from task clients.
+        self.poll_qbt, self.poll_jellyfin = qbt, jellyfin
 
     def health(self, value: dict[str, Any]) -> None:
         with self.db.transaction() as conn:
@@ -170,7 +179,7 @@ class Worker:
             if current.added_on != registered["added_on"] or current.auto_tmm:
                 raise GateError("TORRENT_INSTANCE_DRIFT", "ReplanRequired")
 
-    def poll(self) -> None:
+    def poll_qbittorrent(self) -> None:
         for row in self.db.rows(
             select(p.settings_table).where(p.settings_table.c.key.in_(["automation", "storage"]))
         ):
@@ -180,25 +189,86 @@ class Worker:
                 self.cfg.retry_budget = int(value.get("retry_budget", self.cfg.retry_budget))
             elif "min_free_gib" in value:
                 self.cfg.min_free_bytes = int(value["min_free_gib"]) * 1024**3
-        preferences = self.qbt.get("app/preferences")
+        preferences = self.poll_qbt.get("app/preferences")
         if preferences.get("use_category_paths_in_manual_mode") is not False:
             raise GateError("MANUAL_CATEGORY_PATHS_UNSAFE", "BlockedExternalDependency")
-        observed = self.qbt.all()
+        observed = self.poll_qbt.all()
         self.db.discover(observed, automatic=self.cfg.automatic_intake)
-        jellyfin = "READY"
+
+    def poll_provider(self, name: str, call: Callable[[], Any]) -> None:
+        with self._status_lock:
+            self._providers[name] = {"state": "POLLING", "started_at": p.now().isoformat()}
+        state = "READY"
+        detail = None
         try:
-            if not self.jellyfin.health():
-                jellyfin = "UNAVAILABLE"
+            result = call()
+            if result is False:
+                state = "UNAVAILABLE"
+            elif isinstance(result, dict):
+                detail = result
         except GateError as error:
-            jellyfin = error.code
+            state = error.code
+        except Exception:
+            # Never persist remote exception text or payloads.
+            state = "POLL_FAILED"
+        with self._status_lock:
+            self._providers[name] = {
+                "state": state,
+                "checked_at": p.now().isoformat(),
+                "detail": detail,
+            }
+
+    def poll(self) -> None:
+        """Synchronous diagnostic helper; never called by the dispatcher."""
+        self.poll_provider("qbt", self.poll_qbittorrent)
+        self.poll_provider("jellyfin", self.poll_jellyfin.health)
+        self.poll_provider("nas", self.nas_health)
+        self.report_health()
+
+    def report_health(self) -> None:
+        from app.worker_health import queue_diagnostics
+
+        with self._status_lock:
+            providers = {key: dict(value) for key, value in self._providers.items()}
+            active = dict(self._active_task) if self._active_task else None
+            dispatched = self._last_dispatch
+        for value in providers.values():
+            if value["state"] == "POLLING":
+                age = (p.now() - datetime.fromisoformat(value["started_at"])).total_seconds()
+                value["age_seconds"] = max(0, age)
+                if age > 30:
+                    value["state"] = "POLL_OVERDUE"
+        diagnostics = queue_diagnostics(self.db, active, dispatched)
         self.health(
             {
-                "qbt": "READY",
-                "jellyfin": jellyfin,
-                "nas": self.nas_health(),
-                "state": "READY" if jellyfin == "READY" else "DEGRADED",
+                "owner": self.owner,
+                "liveness": "ALIVE",
+                "dispatch": diagnostics["dispatch"],
+                "last_dispatch_at": dispatched,
+                "task": diagnostics["task"],
+                "queue": diagnostics["queue"],
+                "providers": providers,
+                "qbt": providers.get("qbt", {}).get("state", "UNKNOWN"),
+                "jellyfin": providers.get("jellyfin", {}).get("state", "UNKNOWN"),
+                "nas": providers.get("nas", {}).get("detail"),
+                "state": "READY"
+                if diagnostics["dispatch"] in {"READY", "BUSY"}
+                and all(value["state"] == "READY" for value in providers.values())
+                else "DEGRADED",
             }
         )
+        if diagnostics["queue"]["diagnostic"] == "DISPATCH_OVERDUE":
+            emit("QUEUE_OVERDUE", severity="ERROR", error_code="DISPATCH_OVERDUE")
+
+    def _background(self, call: Callable[[], Any], interval: Callable[[], float]) -> None:
+        while not self._stop.is_set():
+            try:
+                call()
+            except Exception:
+                emit(
+                    "WORKER_OBSERVATION_FAILED", severity="WARNING", error_code="OBSERVATION_FAILED"
+                )
+            self._stop.wait(max(0.5, interval()))
 
     def inspect(self, task: dict[str, Any], torrent: Torrent) -> None:
         self.state(task["job_id"], "Inspecting", 2)
@@ -1048,9 +1118,13 @@ class Worker:
             conn.execute(insert(p.tasks).values(job_id=item["job_id"], kind="REPUBLISH"))
 
     def run_once(self) -> bool:
+        with self._status_lock:
+            self._last_dispatch = p.now().isoformat()
         task = self.db.claim(self.owner)
         if not task:
             return False
+        with self._status_lock:
+            self._active_task = task
         started = time.monotonic()
         outcome, failure = "INTERRUPTED", None
         stop_heartbeat = Event()
@@ -1181,10 +1255,13 @@ class Worker:
                 )
             except GateError:
                 pass  # Lost lease cannot be renewed/finalized by the old worker.
-            self.health({"state": error.state, "error_code": error.code})
+            emit("TASK_BLOCKED", severity="WARNING", error_code=error.code)
         finally:
             stop_heartbeat.set()
             heartbeat_thread.join(timeout=5)
+            with self._status_lock:
+                self._active_task = None
+                self._last_dispatch = p.now().isoformat()
             emit(
                 "TASK_ATTEMPT",
                 job_id=task.get("job_id"),
@@ -1198,26 +1275,54 @@ class Worker:
         return True
 
     def run(self) -> None:
-        last_poll = 0.0
-        while self.running:
-            try:
-                if time.monotonic() - last_poll >= self.cfg.poll_seconds:
-                    self.poll()
-                    last_poll = time.monotonic()
-                if not self.run_once():
-                    time.sleep(0.5)
-            except GateError as error:
-                self.health({"state": error.state, "error_code": error.code})
-                time.sleep(2)
-            except Exception:
-                # No exception repr: SQL/HTTP errors may contain secrets or private inventories.
-                emit(
-                    "WORKER_STOPPED",
-                    phase="shutdown",
-                    severity="CRITICAL",
-                    error_code="UNEXPECTED_FAILURE",
-                )
-                raise SystemExit(1) from None
+        threads = []
+        observers: list[tuple[str, Callable[[], Any]]] = [
+            ("qbt", self.poll_qbittorrent),
+            ("jellyfin", self.poll_jellyfin.health),
+            ("nas", self.nas_health),
+        ]
+        for name, call in observers:
+            thread = Thread(
+                target=self._background,
+                args=(
+                    lambda name=name, call=call: self.poll_provider(name, call),
+                    lambda: float(self.cfg.poll_seconds),
+                ),
+                name="poll-" + name,
+                daemon=True,
+            )
+            threads.append(thread)
+        threads.append(
+            Thread(
+                target=self._background,
+                args=(self.report_health, lambda: 2.0),
+                name="worker-health",
+                daemon=True,
+            )
+        )
+        for thread in threads:
+            thread.start()
+        try:
+            while self.running:
+                try:
+                    if not self.run_once():
+                        self._stop.wait(0.5)
+                except GateError as error:
+                    emit("DISPATCH_FAILED", severity="WARNING", error_code=error.code)
+                    self._stop.wait(2)
+                except Exception:
+                    # Exit for lease-based reconciliation; never blindly replay side effects.
+                    emit(
+                        "WORKER_STOPPED",
+                        phase="shutdown",
+                        severity="CRITICAL",
+                        error_code="UNEXPECTED_FAILURE",
+                    )
+                    raise SystemExit(1) from None
+        finally:
+            self._stop.set()
+            for thread in threads:
+                thread.join(timeout=1)
 
 
 def main() -> None:
@@ -1234,6 +1339,8 @@ def main() -> None:
     else:
         qbt, jellyfin, tmdb = QBittorrent(cfg), Jellyfin(cfg), TMDb(cfg)
     worker = Worker(db, qbt, jellyfin, tmdb)
+    if cfg.adapters != "emulated":
+        worker.poll_qbt, worker.poll_jellyfin = QBittorrent(cfg), Jellyfin(cfg)
 
     def stop(_signal: int, _frame: Any) -> None:
         worker.running = False

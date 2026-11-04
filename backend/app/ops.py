@@ -245,12 +245,14 @@ def main() -> None:
         print("SCHEMA_COMPATIBLE")
     else:
         row = db.one(select(p.settings_table).where(p.settings_table.c.key == "worker_health"))
-        from datetime import datetime
+        from app.worker_health import observed_health
 
-        age = (p.now() - datetime.fromisoformat(row["value"]["time"])).total_seconds()
-        if age > 120:
+        health = observed_health(row["value"])
+        if health["state"] == "STALE":
             raise SystemExit("WORKER_HEARTBEAT_STALE")
-        print("WORKER_HEARTBEAT_FRESH")
+        print(json.dumps(health))
+        if health.get("dispatch") not in {"READY", "BUSY"}:
+            raise SystemExit("WORKER_DISPATCH_NOT_READY")
 
 
 if __name__ == "__main__":
