@@ -148,13 +148,13 @@ test("v1.1 server pagination, compact plans, policy revisions and persistent col
     .click();
   await page
     .locator(".action-pop")
-    .getByRole("button", { name: "Изтриване", exact: true })
+    .getByRole("menuitem", { name: "Изтриване", exact: true })
     .click();
   await page.getByRole("button", { name: "Анализирай", exact: true }).click();
-  const dialog = page.getByRole("dialog", { name: "Физическо изтриване" });
+  const dialog = page.getByRole("dialog", { name: "Потвърждение за изтриване" });
   await expect(dialog).toContainText("AwaitingApproval", { timeout: 30000 });
   await expect(
-    dialog.getByRole("button", { name: "Изтрий потвърдените файлове" }),
+    dialog.getByRole("button", { name: "Потвърди изтриването" }),
   ).toBeDisabled();
   await page.keyboard.press("Escape");
   await expect(dialog).not.toBeVisible();
