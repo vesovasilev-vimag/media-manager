@@ -26,3 +26,7 @@ Only local synthetic containers/volumes are used. Production NAS, torrents and s
 ## Library-first amendment (2026-11-04)
 
 Dedicated branch `feat/library-first-normalization` starts at v1.1.1 / PR #12 (`3d34ecf`). Implemented independent normalization, full metadata inspection, persistent Library review queue, queued TMDb search/ID lookup, manual corrections and per-asset reanalysis, preview filters and version evidence. Updated wireframe, OpenAPI, requirements and traceability. See [validation report](library-first-report.md). Delivery is an unmerged PR; no release, deploy or production changes are authorized.
+
+## Canonical v0.2.0 source milestone (2026-11-04)
+
+The preceding section was written before merge and is retained as historical handoff evidence. All six CI/Security checks succeeded. [PR #13](https://github.com/vesovasilev-vimag/media-manager/pull/13) merged to `main` at `9afa8a355a2a8c562cdd33a35b0320f2de09f229`. Product version: **v0.2.0 (Extension)**. See [canonical release history](../release-history.md). Release image publication and production deployment remain separate operations.

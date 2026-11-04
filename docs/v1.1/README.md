@@ -1,3 +1,5 @@
+> **Versioning clarification (2026-11-04):** The `docs/v1.1/` path and headings are historical engineering labels, not the current product version. Canonical release history is [RC-01 → v0.1.0 → v0.1.1 → v0.2.0](../release-history.md). PR #13 has been merged as v0.2.0 source; production publication and deployment are separately gated.
+
 # ViMag Media Manager v1.1
 
 > **2026-11-04 Library-first amendment:** For NAS Library inspection, enrichment and normalization, [Library-first normalization](library-first-normalization.md) supersedes historical torrent-dependency gating below. Torrent records and `missingFiles` are not Library normalization blockers. Physical ownership, fingerprints, paths, collisions, exact approvals, leases, journal/recovery and production write authorization remain mandatory. Delete/quarantine and download/import retain their separate dependency protections.

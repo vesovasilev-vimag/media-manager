@@ -1,3 +1,5 @@
+> **Canonical product version: v0.2.0 (Extension), source merged.** Product history: [RC-01 → v0.1.0 → v0.1.1 → v0.2.0](docs/release-history.md). Historical v1.1 labels/tags below are archival; a source merge alone is not a Docker publication or production deployment.
+
 # ViMag Media Manager
 
 > **v1.1 Library Maintenance:** implementation [PR #4](https://github.com/vesovasilev-vimag/media-manager/pull/4) was merged by the repository owner into `codex/rc1`; [PR #5](https://github.com/vesovasilev-vimag/media-manager/pull/5) contains the final RC1 quarantine-migration compatibility correction. The [implementation report](docs/v1.1/implementation-report.md) records test evidence and deployment prerequisites. Approved [requirements](docs/v1.1/README.md), [traceability](docs/v1.1/traceability.md), [technical decisions](docs/v1.1/implementation-decisions.md) and [operations/recovery](docs/v1.1/operations-and-recovery.md) are versioned separately. Production writes, intake, release publication and deployment remain separately authorized.
