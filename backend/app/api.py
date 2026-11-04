@@ -1206,6 +1206,9 @@ def create_app(config: Settings | None = None, database: p.Database | None = Non
                 except ValidationError:
                     raise HTTPException(422, "INVALID_IDENTITY") from None
                 identity.confirmed = True
+                from app.english_metadata import require_english
+
+                require_english(body.identity)
                 target = name_for(
                     category,
                     identity,

@@ -155,7 +155,9 @@ def associated(worker: Any, asset: dict[str, Any]) -> list[dict[str, Any]]:
     return result
 
 
-def identity(worker: Any, asset: dict[str, Any]) -> dict[str, Any]:
+def identity(
+    worker: Any, asset: dict[str, Any], policy: dict[str, Any] | None = None
+) -> dict[str, Any]:
     """Only established IDs can auto-confirm; title-only candidates remain reviewable."""
     known = dict(asset["data"].get("identity") or {})
     name = PurePosixPath(asset["relative_path"]).stem
@@ -187,51 +189,7 @@ def identity(worker: Any, asset: dict[str, Any]) -> dict[str, Any]:
             known["provider_id"] = stored[2]
     known.setdefault("edition", "Unknown")
     provider_id = known.get("provider_id")
-    if provider_id:
-        key = "tmdb:" + str(known.get("media_type", "movie")) + ":" + str(provider_id)
-        cache = worker.db.rows(select(p.settings_table).where(p.settings_table.c.key == key))
-        cached = cache[0]["value"] if cache else None
-        if (
-            not cached
-            or (
-                p.now() - __import__("datetime").datetime.fromisoformat(cached["cached_at"])
-            ).total_seconds()
-            > 86400
-        ):
-            if hasattr(worker.tmdb, "details"):
-                try:
-                    details = worker.tmdb.details(
-                        str(provider_id), known.get("media_type", "movie")
-                    )
-                except GateError:
-                    if not known.get("confirmed"):
-                        raise
-                else:
-                    cached = {**details, "cached_at": p.now().isoformat()}
-                    with worker.db.transaction() as conn:
-                        conn.execute(
-                            pg_insert(p.settings_table)
-                            .values(key=key, value=cached)
-                            .on_conflict_do_update(index_elements=["key"], set_={"value": cached})
-                        )
-        if cached:
-            if known.get("year") and cached.get("year") != known["year"]:
-                raise GateError("METADATA_YEAR_CONFLICT")
-            for field in [
-                "imdb_id",
-                "collection_id",
-                "collection_name",
-                "poster_path",
-                "backdrop_path",
-            ]:
-                if cached.get(field) is not None:
-                    known[field] = cached[field]
-            if not known.get("title"):
-                known["title"] = cached.get("title")
-            known["year"] = known.get("year") or cached.get("year")
-            known["confirmed"] = True
-            known["provenance"] = "reused-tmdb-id"
-    if not known.get("confirmed"):
+    if not provider_id and not known.get("confirmed"):
         title = re.split(r"(?i)\b(?:19\d{2}|20\d{2}|S\d+E\d+)\b", name.replace(".", " "))[0].strip(
             " -_"
         )
@@ -249,7 +207,9 @@ def identity(worker: Any, asset: dict[str, Any]) -> dict[str, Any]:
                 )
             )
         raise GateError("AMBIGUOUS_IDENTITY" if candidates else "IDENTITY_UNAVAILABLE")
-    return known
+    from app.english_metadata import propose
+
+    return propose(worker, asset, known, policy or library_policy.defaults())
 
 
 def analyze(worker: Any, task: dict[str, Any]) -> None:
@@ -315,7 +275,7 @@ def analyze(worker: Any, task: dict[str, Any]) -> None:
                 and x.relative_to(worker.cfg.nas_root).as_posix() not in known_paths
             ]
             if kind == "NORMALIZE":
-                d["identity"] = identity(worker, asset)
+                d["identity"] = identity(worker, asset, job["data"]["policy"])
                 candidates = db.rows(
                     select(p.evidence_tables["subtitle_candidates"])
                     .where(
@@ -602,6 +562,16 @@ def execute(worker: Any, task: dict[str, Any]) -> bool:
         try:
             db.reserve(task, resources)
             asset = db.one(select(p.assets).where(p.assets.c.id == file["asset_id"]))
+            if kind == "NORMALIZE":
+                expected = library_policy.render(
+                    job["data"]["policy"],
+                    asset["category"],
+                    d["identity"],
+                    asset["data"],
+                    asset["relative_path"],
+                )
+                if "Library/" + expected["path"] != d["target"]:
+                    raise GateError("ENGLISH_PLAN_TARGET_DRIFT")
             if file["phase"] == 0:
                 if (
                     asset["revision"] != d["asset_revision"]

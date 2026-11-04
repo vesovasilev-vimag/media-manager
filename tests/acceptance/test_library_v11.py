@@ -28,6 +28,8 @@ def asset(
             "media_type": "movie",
             "edition": "Theatrical",
             "confirmed": True,
+            "title_language": "en-US",
+            "english_title_verified": True,
         },
         "bg": "NO_BG",
     }
@@ -405,12 +407,15 @@ def test_SCAN_overlap_guard_and_policy_zero_fs_changes(stack: Any) -> None:
 def test_HIER_collection_editions_unicode_and_optional_no_unknown() -> None:
     policy = library_policy.defaults()
     identity = {
-        "title": "Пример: Movie",
+        "title": "Sample: Movie",
         "year": 2026,
         "media_type": "movie",
         "confirmed": True,
         "edition": "Extended",
         "collection_name": "Collection",
+        "title_language": "en-US",
+        "english_title_verified": True,
+        "collection_language": "en-US",
     }
     output = library_policy.render(
         policy,
@@ -432,6 +437,7 @@ def test_HIER_collection_editions_unicode_and_optional_no_unknown() -> None:
         )["path"]
     )
     identity["collection_override"] = "Manual"
+    identity["collection_override_language"] = "en-US"
     assert (
         "/Manual/"
         in library_policy.render(
@@ -744,10 +750,14 @@ def test_META_known_id_string_year_collection_cache_and_owned_nfo_policy_move(
             calls.append(provider_id)
             return {
                 "title": "Fixture",
+                "provider_id": provider_id,
+                "title_language": "en-US",
+                "english_title_verified": True,
                 "year": 2026,
                 "imdb_id": "tt-synthetic",
                 "collection_id": "synthetic-collection",
                 "collection_name": "Synthetic Collection",
+                "collection_language": "en-US",
             }
 
     worker.tmdb = Metadata()

@@ -104,7 +104,13 @@ def test_approved_normalization_reversible_journal_no_unknown_sidecar_write(
     result = client.post(
         f"/api/v1/library/assets/{aid}/normalization-plan",
         json={
-            "identity": {"title": "Synthetic", "year": 2026, "media_type": "movie"},
+            "identity": {
+                "title": "Synthetic",
+                "year": 2026,
+                "media_type": "movie",
+                "title_language": "en-US",
+                "english_title_verified": True,
+            },
             "quality_label": "1080p",
             "reason": "Synthetic explicit normalization review",
         },

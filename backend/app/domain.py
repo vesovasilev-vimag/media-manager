@@ -150,6 +150,11 @@ class Identity:
     part: int | None = None
     artist: str | None = None
     confirmed: bool = False
+    original_title: str | None = None
+    original_name: str | None = None
+    title_language: str | None = None
+    english_title_verified: bool = False
+    title_provenance: str | None = None
 
 
 def name_for(category: str, i: Identity, quality: str, bg: str, extension: str) -> str:

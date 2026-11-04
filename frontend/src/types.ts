@@ -9,6 +9,16 @@ export interface Identity {
   artist?: string;
   confirmed?: boolean;
   collection_override?: string;
+  original_title?: string | null;
+  original_name?: string | null;
+  title_language?: string | null;
+  english_title_verified?: boolean;
+  title_provenance?: string | null;
+  collection_name?: string;
+  collection_language?: string;
+  collection_override_language?: string;
+  episode_title?: string;
+  episode_title_language?: string;
 }
 export interface ItemData {
   identity?: Identity;

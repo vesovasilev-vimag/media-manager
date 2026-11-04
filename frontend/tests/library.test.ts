@@ -46,6 +46,44 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 describe("v1.1 Library", () => {
+  it("uses the shortened toolbar labels without changing analysis or scan requests", async () => {
+    const writes: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, options: RequestInit) => {
+        if (options.method === "POST") {
+          writes.push(url);
+          return response({ id: "scan-one" });
+        }
+        if (url.includes("/scans/"))
+          return response({ id: "scan-one", state: "QUEUED", data: {} });
+        return response(
+          url.includes("analytics")
+            ? { categories: [] }
+            : { items: [media], total: 1 },
+        );
+      }),
+    );
+    const wrapper = mount(LibraryOperations);
+    await flushPromises();
+    expect(wrapper.find('.toolbar [aria-label="Нормализация"]').text()).toBe(
+      "⚙ Нормализация",
+    );
+    expect(wrapper.find('.toolbar [aria-label="Обследване"]').text()).toBe(
+      "⟳ Обследване",
+    );
+    await wrapper.find('.toolbar [aria-label="Нормализация"]').trigger("click");
+    expect(writes).toHaveLength(0);
+    expect(wrapper.find('[role="dialog"]').attributes("aria-label")).toBe(
+      "Нормализация",
+    );
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    await flushPromises();
+    await wrapper.find('.toolbar [aria-label="Обследване"]').trigger("click");
+    await flushPromises();
+    expect(writes).toEqual(["/api/v1/library/scans"]);
+    wrapper.unmount();
+  });
   it("keeps server page and selection across row menus and view changes", async () => {
     const calls: string[] = [];
     vi.stubGlobal(

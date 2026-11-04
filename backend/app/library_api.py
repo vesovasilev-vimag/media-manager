@@ -190,10 +190,14 @@ def register(app: FastAPI, db: p.Database, admin: Any, command: Any) -> None:
             "episode_title",
             "event",
             "provenance",
+            "collection_language",
+            "collection_override_language",
+            "episode_title_language",
         }
         if not set(body.identity) <= fields:
             raise GateError("INVALID_IDENTITY")
         value = {**body.identity, "confirmed": True}
+        value["title_provenance"] = "manual-override"
         try:
             parsed: Identity = TypeAdapter(Identity).validate_python(
                 {k: v for k, v in value.items() if k in Identity.__dataclass_fields__}
@@ -223,7 +227,19 @@ def register(app: FastAPI, db: p.Database, admin: Any, command: Any) -> None:
                 )
                 if not row or row["revision"] != body.expected_revision:
                     raise GateError("ASSET_REVISION_STALE")
-                data = {**row["data"], "identity": value}
+                previous = row["data"].get("identity") or {}
+                merged = {**previous, **value}
+                if (
+                    value["title"] != previous.get("title")
+                    or value.get("provider_id") != previous.get("provider_id")
+                ) and not value.get("english_title_verified"):
+                    merged["title_language"] = None
+                    merged["english_title_verified"] = False
+                if value.get("collection_override") != previous.get(
+                    "collection_override"
+                ) and not value.get("collection_override_language"):
+                    merged["collection_override_language"] = None
+                data = {**row["data"], "identity": merged}
                 conn.execute(
                     update(p.assets)
                     .where(p.assets.c.id == str(asset_id))

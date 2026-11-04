@@ -77,6 +77,16 @@ async function library(page: Page) {
     await route.fulfill({ json: data });
   });
   await page.goto("/#library");
+  await expect(
+    page
+      .locator(".toolbar")
+      .getByRole("button", { name: "Нормализация", exact: true }),
+  ).toHaveText("⚙ Нормализация");
+  await expect(
+    page
+      .locator(".toolbar")
+      .getByRole("button", { name: "Обследване", exact: true }),
+  ).toHaveText("⟳ Обследване");
   await expect(page.locator("tbody tr")).toHaveCount(25);
   return { mutations, release: () => releaseApproval?.() };
 }

@@ -171,6 +171,7 @@ const subtitleContent = ref(""),
   subtitleProvider = ref("manual"),
   subtitleRelease = ref("");
 const identityAsset = ref<Media>();
+const manualEnglish = ref(false);
 const identityCandidates = ref<
   { id: string; title: string; year: number; media_type: string }[]
 >([]);
@@ -197,6 +198,7 @@ const identityForm = ref({
   collection_override: "",
 });
 function editIdentity(row: Media) {
+  manualEnglish.value = false;
   identityAsset.value = row;
   menu.value = undefined;
   const i = row.data.identity;
@@ -232,6 +234,15 @@ async function saveIdentity() {
         provider_id: value.provider_id || null,
         episodes: value.media_type === "show" ? [value.episode] : [],
         confirmed: true,
+        ...(manualEnglish.value
+          ? {
+              title_language: "en-US",
+              english_title_verified: true,
+              collection_override_language: value.collection_override
+                ? "en-US"
+                : undefined,
+            }
+          : {}),
       },
     });
     identityAsset.value = undefined;
@@ -571,10 +582,14 @@ onUnmounted(() => {
     <div class="row toolbar">
       <span class="muted"
         >{{ allCount.toLocaleString("bg-BG") }} видеофайла</span
-      ><button class="primary" @click="start('normalize')">
-        ⚙ Масова нормализация</button
-      ><button :disabled="busy" @click="startScan">
-        ⟳ Обследвай библиотеката</button
+      ><button
+        class="primary"
+        aria-label="Нормализация"
+        @click="start('normalize')"
+      >
+        ⚙ Нормализация</button
+      ><button :disabled="busy" aria-label="Обследване" @click="startScan">
+        ⟳ Обследване</button
       ><button @click="showHistory">Карантина</button>
     </div>
     <p
@@ -1258,6 +1273,11 @@ onUnmounted(() => {
         Потвърждава метаданни. Промяната на файловете изисква нов план за
         нормализация.
       </p>
+      <label class="check"
+        ><input v-model="manualEnglish" type="checkbox" /> Потвърждавам, че
+        ръчно въведените заглавие и колекция са на английски. Другите заглавия
+        изискват преглед преди нормализация.</label
+      >
       <button
         class="primary"
         :disabled="busy || !identityForm.title"
