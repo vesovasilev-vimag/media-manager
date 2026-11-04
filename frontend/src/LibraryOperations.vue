@@ -2,6 +2,8 @@
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { api } from "./api";
 import CompactDialog from "./CompactDialog.vue";
+import LibraryActionMenu from "./LibraryActionMenu.vue";
+import type { LibraryAction } from "./libraryActions";
 import type { Asset, Plan } from "./types";
 
 interface Track {
@@ -78,6 +80,33 @@ const selected = ref<string[]>([]),
   analytics = ref<
     { category: string; count: number; bytes: number; known_sizes: number }[]
   >([]);
+const knownMedia = new Map<string, Media>();
+let operationGeneration = 0;
+const deleteTargets = ref<
+  { id: string; title: string; relative_path: string }[]
+>([]);
+const approvalPending = ref(false),
+  approvalAccepted = ref(false);
+const deleteReady = computed(
+  () =>
+    !!operation.value?.plan &&
+    operation.value.state === "AwaitingApproval" &&
+    !!operation.value.counts.Planned,
+);
+const deleteStatus = computed(() => {
+  if (!operation.value) return "";
+  if (["Completed", "CompletedWithWarnings"].includes(operation.value.state))
+    return "Сървърът потвърди приключването на операцията. Прегледайте резултатите за всеки файл.";
+  if (
+    ["NeedsReview", "Failed", "RecoveryRequired"].includes(
+      operation.value.state,
+    )
+  )
+    return "Операцията не е потвърдена като успешна. Прегледайте съобщенията за файловете.";
+  return approvalAccepted.value
+    ? "Сървърът прие одобрението. Изчакайте потвърждение за изпълнението."
+    : "";
+});
 const scan = ref<{
   id: string;
   state: string;
@@ -220,6 +249,7 @@ async function selectMatching() {
       for (const [k, v] of Object.entries(criteria.value))
         if (v) params.set(k, v);
       const page = await api<{ items: Media[] }>("/library/assets?" + params);
+      page.items.forEach((row) => knownMedia.set(row.id, row));
       ids.push(...page.items.map((r) => r.id));
     }
     selected.value = [...new Set(ids)];
@@ -287,6 +317,7 @@ async function load() {
     );
     if (current === generation) {
       rows.value = result.items;
+      result.items.forEach((row) => knownMedia.set(row.id, row));
       total.value = result.total;
     }
   } catch (e) {
@@ -296,11 +327,12 @@ async function load() {
   }
 }
 async function aggregate() {
-  const result = await api<{ categories: typeof analytics.value; last_scan?: NonNullable<typeof scan.value>[] }>(
-    "/library/analytics",
-  );
+  const result = await api<{
+    categories: typeof analytics.value;
+    last_scan?: NonNullable<typeof scan.value>[];
+  }>("/library/analytics");
   analytics.value = result.categories;
-  if(result.last_scan?.length)scan.value=result.last_scan[0];
+  if (result.last_scan?.length) scan.value = result.last_scan[0];
 }
 function toggle(id: string) {
   selected.value = selected.value.includes(id)
@@ -314,15 +346,46 @@ function togglePage() {
     : [...new Set([...selected.value, ...ids])];
 }
 function start(which: string, ids?: string[]) {
+  if (approvalPending.value) return;
+  operationGeneration++;
   action.value = which;
   operation.value = undefined;
   confirmed.value = false;
+  approvalAccepted.value = false;
+  error.value = "";
   menu.value = undefined;
   fileOffset.value = 0;
   if (ids) selected.value = ids;
+  deleteTargets.value =
+    which === "delete"
+      ? selected.value.map((id) => {
+          const row = knownMedia.get(id);
+          return {
+            id,
+            title: row?.title ?? id,
+            relative_path:
+              row?.relative_path ?? "Пътят ще бъде потвърден в точния план.",
+          };
+        })
+      : [];
   scope.value = selected.value.length ? "selected" : "all";
 }
+function assetAction(which: LibraryAction, row: Media) {
+  if (which === "identity") editIdentity(row);
+  else if (which === "subtitles") void showSubtitles(row);
+  else start(which, [row.id]);
+}
+function closeOperation() {
+  if (approvalPending.value) return;
+  operationGeneration++;
+  action.value = "";
+  operation.value = undefined;
+  confirmed.value = false;
+}
 async function analyze() {
+  if (busy.value) return;
+  const current = operationGeneration;
+  const route = operationRoutes[action.value];
   await attempt(async () => {
     const body =
       scope.value === "selected" || action.value !== "normalize"
@@ -331,32 +394,51 @@ async function analyze() {
           ? { category: scopeCategory.value }
           : { all: true };
     const result = await api<{ job_id: string }>(
-      `/library/${operationRoutes[action.value]}/plans`,
+      `/library/${route}/plans`,
       "POST",
       body,
     );
-    operation.value = await api<Maintenance>(
-      `/library/${operationRoutes[action.value]}/${result.job_id}`,
-    );
+    if (current !== operationGeneration) return;
+    const value = await api<Maintenance>(`/library/${route}/${result.job_id}`);
+    if (current === operationGeneration) operation.value = value;
   });
 }
 async function updateOperation() {
   if (!operation.value) return;
-  operation.value = await api<Maintenance>(
+  const current = operationGeneration;
+  const value = await api<Maintenance>(
     `/library/${operationRoutes[action.value]}/${operation.value.id}?offset=${fileOffset.value}`,
   );
+  if (current === operationGeneration) operation.value = value;
 }
 async function approve() {
-  await attempt(async () => {
-    const p = operation.value?.plan;
-    if (!p || !confirmed.value) return;
-    await api(
-      `/library/${operationRoutes[action.value]}/${operation.value!.id}/approve`,
-      "POST",
-      { plan_revision: p.revision, plan_sha256: p.sha256, confirmed: true },
-    );
-    await updateOperation();
-  });
+  const current = operation.value;
+  const p = current?.plan;
+  if (
+    busy.value ||
+    approvalPending.value ||
+    approvalAccepted.value ||
+    !p ||
+    !confirmed.value ||
+    current.state !== "AwaitingApproval" ||
+    !current.counts.Planned
+  )
+    return;
+  approvalPending.value = true;
+  try {
+    await attempt(async () => {
+      await api(
+        `/library/${operationRoutes[action.value]}/${current.id}/approve`,
+        "POST",
+        { plan_revision: p.revision, plan_sha256: p.sha256, confirmed: true },
+      );
+      approvalAccepted.value = true;
+      confirmed.value = false;
+      await updateOperation();
+    });
+  } finally {
+    approvalPending.value = false;
+  }
 }
 async function control(command: string) {
   await attempt(async () => {
@@ -455,6 +537,13 @@ watch(limit, () => {
   void load();
 });
 watch(offset, () => void load());
+watch(
+  [view, offset, limit, criteria],
+  () => {
+    menu.value = undefined;
+  },
+  { deep: true },
+);
 watch(fileOffset, () => void updateOperation());
 onMounted(() => {
   void attempt(async () => {
@@ -501,7 +590,21 @@ onUnmounted(() => {
       непроменени {{ scan.data.unchanged ?? 0 }} · липсващи
       {{ scan.data.missing ?? 0 }} · грешки {{ scan.data.failed ?? 0 }}
     </div>
-    <details v-if="scan && Array.isArray(scan.data.errors) && scan.data.errors.length"><summary>Грешки при обследването</summary><p v-for="(entry,i) in (scan.data.errors as {category?:string;path?:string;code:string}[])" :key="i">{{entry.category}} · {{entry.path}} · {{entry.code}}</p></details>
+    <details
+      v-if="scan && Array.isArray(scan.data.errors) && scan.data.errors.length"
+    >
+      <summary>Грешки при обследването</summary>
+      <p
+        v-for="(entry, i) in scan.data.errors as {
+          category?: string;
+          path?: string;
+          code: string;
+        }[]"
+        :key="i"
+      >
+        {{ entry.category }} · {{ entry.path }} · {{ entry.code }}
+      </p>
+    </details>
     <div class="analytics-grid">
       <section class="panel pad">
         <h2>Файлове по категории</h2>
@@ -730,26 +833,14 @@ onUnmounted(() => {
                 >
               </td>
               <td>
-                <button
-                  :aria-label="'Действия за ' + row.title"
-                  @click="menu = menu === row.id ? undefined : row.id"
-                >
-                  ⋯
-                </button>
-                <div v-if="menu === row.id" class="action-pop">
-                  <button @click="start('normalize', [row.id])">
-                    Нормализация</button
-                  ><button @click="start('quarantine', [row.id])">
-                    Карантина</button
-                  ><button class="danger" @click="start('delete', [row.id])">
-                    Изтриване</button
-                  ><button @click="showSubtitles(row)">
-                    Субтитри / версии
-                  </button>
-                  <button @click="editIdentity(row)">
-                    Идентификация / колекция
-                  </button>
-                </div>
+                <LibraryActionMenu
+                  :asset="row"
+                  :busy="busy"
+                  :open="menu === row.id"
+                  @toggle="menu = menu === row.id ? undefined : row.id"
+                  @close="menu = undefined"
+                  @select="assetAction($event, row)"
+                />
               </td>
             </tr>
           </tbody>
@@ -766,12 +857,14 @@ onUnmounted(() => {
               :checked="selected.includes(row.id)"
               @change="toggle(row.id)"
             /><span class="badge">{{ categories[row.category] }}</span
-            ><button
-              :aria-label="'Действия за ' + row.title"
-              @click="menu = menu === row.id ? undefined : row.id"
-            >
-              ⋯
-            </button>
+            ><LibraryActionMenu
+              :asset="row"
+              :busy="busy"
+              :open="menu === row.id"
+              @toggle="menu = menu === row.id ? undefined : row.id"
+              @close="menu = undefined"
+              @select="assetAction($event, row)"
+            />
           </div>
           <h2>{{ row.title }}</h2>
           <p class="file-path">{{ row.relative_path }}</p>
@@ -803,14 +896,6 @@ onUnmounted(() => {
               {{ s.language }} · външни
             </p>
           </details>
-          <div v-if="menu === row.id" class="action-pop">
-            <button @click="start('normalize', [row.id])">Нормализация</button
-            ><button @click="start('quarantine', [row.id])">Карантина</button
-            ><button class="danger" @click="start('delete', [row.id])">
-              Изтриване</button
-            ><button @click="showSubtitles(row)">Субтитри / версии</button>
-            <button @click="editIdentity(row)">Идентификация / колекция</button>
-          </div>
         </article>
       </div>
       <p v-if="!rows.length && !loading" class="empty">
@@ -842,11 +927,28 @@ onUnmounted(() => {
         action === 'normalize'
           ? 'Нормализация'
           : action === 'delete'
-            ? 'Физическо изтриване'
+            ? 'Потвърждение за изтриване'
             : 'Карантина'
       "
-      @close="action = ''"
+      :dismissible="!approvalPending"
+      @close="closeOperation"
     >
+      <template v-if="action === 'delete'">
+        <p>
+          Заявявате изтриване на избраните видеофайлове и доказано
+          принадлежащите им файлове от библиотеката. Това действие не може да се
+          отмени от ViMag. Карантината и torrent зависимостите остават защитени.
+        </p>
+        <div v-for="target in deleteTargets" :key="target.id" class="plan-row">
+          <strong>{{ target.title }}</strong
+          ><span class="delete-path">{{ target.relative_path }}</span>
+        </div>
+        <p>
+          Първо анализирайте точния план. Само допустимите файлове в одобрения
+          план могат да бъдат обработени от сървъра.
+        </p>
+        <p v-if="deleteStatus" role="status">{{ deleteStatus }}</p>
+      </template>
       <template v-if="!operation"
         ><p>Анализ → точен план → едно одобрение → автоматично изпълнение.</p>
         <label v-if="action === 'normalize'"
@@ -944,7 +1046,8 @@ onUnmounted(() => {
             Следващи файлове
           </button>
         </div>
-        <template v-if="operation.state === 'AwaitingApproval'"
+        <template
+          v-if="operation.state === 'AwaitingApproval' && action !== 'delete'"
           ><label class="check"
             ><input v-model="confirmed" type="checkbox" />{{
               action === "delete"
@@ -963,7 +1066,10 @@ onUnmounted(() => {
             }}
           </button></template
         >
-        <div v-else-if="operation.plan" class="row">
+        <div
+          v-else-if="operation.plan && operation.state !== 'AwaitingApproval'"
+          class="row"
+        >
           <button :disabled="busy" @click="control('pause')">Пауза</button
           ><button :disabled="busy" @click="control('resume')">Продължи</button
           ><button :disabled="busy" @click="control('cancel')">
@@ -979,6 +1085,37 @@ onUnmounted(() => {
           </p>
         </details></template
       >
+      <div v-if="action === 'delete'">
+        <label class="check"
+          ><input
+            v-model="confirmed"
+            type="checkbox"
+            :disabled="
+              !deleteReady || busy || approvalPending || approvalAccepted
+            "
+          />
+          Разбирам, че потвърждавам окончателно изтриване само на допустимите
+          файлове от точния план.</label
+        >
+        <div class="row">
+          <button :disabled="approvalPending" @click="closeOperation">
+            Отказ
+          </button>
+          <button
+            class="danger"
+            :disabled="
+              !confirmed ||
+              !deleteReady ||
+              busy ||
+              approvalPending ||
+              approvalAccepted
+            "
+            @click="approve"
+          >
+            {{ approvalPending ? "Изпращане…" : "Потвърди изтриването" }}
+          </button>
+        </div>
+      </div>
     </CompactDialog>
     <CompactDialog
       v-if="history"
@@ -996,7 +1133,11 @@ onUnmounted(() => {
             type="checkbox"
             :value="q.id"
             :disabled="q.state !== 'QUARANTINED' || !q.data.bulk"
-          />{{q.data.bulk?'Избери за възстановяване':'RC1 manifest · индивидуално възстановяване'}}</label
+          />{{
+            q.data.bulk
+              ? "Избери за възстановяване"
+              : "RC1 manifest · индивидуално възстановяване"
+          }}</label
         >
         <span>{{ q.data.source }} · {{ q.state }}</span
         ><button
@@ -1252,21 +1393,8 @@ details small {
   display: block;
   color: #83dfc4;
 }
-.action-pop {
-  position: absolute;
-  right: 10px;
-  z-index: 15;
-  width: 190px;
-  border: 1px solid #4b7972;
-  background: #11262d;
-  border-radius: 10px;
-  padding: 6px;
-  box-shadow: 0 14px 38px #0008;
-}
-.action-pop button {
-  width: 100%;
-  border: 0;
-  text-align: left;
+.delete-path {
+  overflow-wrap: anywhere;
   font-size: 11px;
 }
 .danger {
@@ -1299,7 +1427,7 @@ details small {
   gap: 12px;
   align-items: center;
 }
-.card-top button {
+.card-top :deep(button[aria-haspopup]) {
   margin-left: auto;
 }
 .pager {
