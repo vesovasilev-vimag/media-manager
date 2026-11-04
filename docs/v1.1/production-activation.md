@@ -1,3 +1,5 @@
+> **Historical operational runbook:** `1.1.0` in this document is the original proposed release identifier. For new releases use [canonical product versions](../release-history.md); current source milestone is **v0.2.0**. Do not enable production write/intake gates solely to align version numbers.
+
 # ViMag 1.1 — permanent production activation
 
 **Target release**: `1.1.0` (stable). **Source of truth**: `main`. Do not deploy old `1.0.0-rc.1` images against PostgreSQL schema `0002`.
