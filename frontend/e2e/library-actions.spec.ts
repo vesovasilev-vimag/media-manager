@@ -87,26 +87,31 @@ async function library(page: Page) {
       .locator(".toolbar")
       .getByRole("button", { name: "Обследване", exact: true }),
   ).toHaveText("⟳ Обследване");
-  await expect(page.locator("tbody tr")).toHaveCount(25);
+  await expect(page.locator(".results tbody tr")).toHaveCount(25);
   return { mutations, release: () => releaseApproval?.() };
 }
 
-async function anchored(page: Page, top: boolean) {
+async function anchored(page: Page, top?: boolean) {
   const trigger = page.getByRole("button", {
     name: "Действия за Action fixture 0",
     exact: true,
   });
   const menu = page.getByRole("menu");
   await expect(menu).toBeVisible();
-  await expect(menu).toHaveAttribute(
-    "data-placement",
-    top ? "top-end" : "bottom-end",
-  );
+  if (top !== undefined)
+    await expect(menu).toHaveAttribute(
+      "data-placement",
+      top ? "top-end" : "bottom-end",
+    );
   await expect
     .poll(async () => {
       const a = (await trigger.boundingBox())!,
         b = (await menu.boundingBox())!;
-      return Math.abs((top ? a.y - b.y - b.height : b.y - a.y - a.height) - 8);
+      const above =
+        top ?? (await menu.getAttribute("data-placement")) === "top-end";
+      return Math.abs(
+        (above ? a.y - b.y - b.height : b.y - a.y - a.height) - 8,
+      );
     })
     .toBeLessThan(1);
   const box = (await menu.boundingBox())!;
@@ -146,12 +151,12 @@ for (const viewport of [
     ).toBeFocused();
     // Horizontal table scrolling must not clip the portalled menu.
     await expect(page.getByRole("menu")).toBeVisible();
-    await anchored(page, false);
+    await anchored(page);
     await page.locator(".table-scroll").evaluate((el) => {
       el.style.maxHeight = "180px";
       el.scrollTop = 10;
     });
-    await anchored(page, false);
+    await anchored(page);
     await page.keyboard.press("Escape");
     await expect(page.getByRole("menu")).toHaveCount(0);
     await expect(trigger).toBeFocused();

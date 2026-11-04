@@ -3,6 +3,7 @@ import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { api } from "./api";
 import CompactDialog from "./CompactDialog.vue";
 import LibraryActionMenu from "./LibraryActionMenu.vue";
+import LibraryAnalytics from "./LibraryAnalytics.vue";
 import type { LibraryAction } from "./libraryActions";
 import type { Asset, Plan } from "./types";
 
@@ -81,6 +82,8 @@ const selected = ref<string[]>([]),
     { category: string; count: number; bytes: number; known_sizes: number }[]
   >([]);
 const knownMedia = new Map<string, Media>();
+const analyticsLoading = ref(true),
+  analyticsError = ref("");
 let operationGeneration = 0;
 const deleteTargets = ref<
   { id: string; title: string; relative_path: string }[]
@@ -280,12 +283,6 @@ const pageSelected = computed(
 const allCount = computed(() =>
   analytics.value.reduce((n, c) => n + c.count, 0),
 );
-const maxBytes = computed(() =>
-  Math.max(1, ...analytics.value.map((c) => Number(c.bytes))),
-);
-const maxCount = computed(() =>
-  Math.max(1, ...analytics.value.map((c) => c.count)),
-);
 let poll: ReturnType<typeof setInterval> | undefined,
   debounce: ReturnType<typeof setTimeout> | undefined,
   generation = 0;
@@ -338,12 +335,21 @@ async function load() {
   }
 }
 async function aggregate() {
-  const result = await api<{
-    categories: typeof analytics.value;
-    last_scan?: NonNullable<typeof scan.value>[];
-  }>("/library/analytics");
-  analytics.value = result.categories;
-  if (result.last_scan?.length) scan.value = result.last_scan[0];
+  try {
+    const result = await api<{
+      categories: typeof analytics.value;
+      last_scan?: NonNullable<typeof scan.value>[];
+    }>("/library/analytics");
+    if (!Array.isArray(result.categories)) throw new Error("INVALID_ANALYTICS");
+    analytics.value = result.categories;
+    if (result.last_scan?.length) scan.value = result.last_scan[0];
+    analyticsError.value = "";
+  } catch {
+    analyticsError.value =
+      "Статистиката за библиотеката не може да бъде обновена.";
+  } finally {
+    analyticsLoading.value = false;
+  }
 }
 function toggle(id: string) {
   selected.value = selected.value.includes(id)
@@ -620,33 +626,11 @@ onUnmounted(() => {
         {{ entry.category }} · {{ entry.path }} · {{ entry.code }}
       </p>
     </details>
-    <div class="analytics-grid">
-      <section class="panel pad">
-        <h2>Файлове по категории</h2>
-        <div v-for="c in analytics" :key="c.category" class="chart-row">
-          <span>{{ categories[c.category] }}</span
-          ><meter
-            :value="c.count"
-            :max="maxCount"
-            :aria-label="categories[c.category] + ' файлове'"
-          /><b>{{ c.count.toLocaleString("bg-BG") }}</b>
-        </div>
-      </section>
-      <section class="panel pad">
-        <h2>Обем от ffprobe</h2>
-        <div v-for="c in analytics" :key="c.category" class="chart-row">
-          <span>{{ categories[c.category] }}</span
-          ><meter
-            :value="Number(c.bytes)"
-            :max="maxBytes"
-            :aria-label="categories[c.category] + ' байтове'"
-          /><b>{{ bytes(Number(c.bytes)) }}</b
-          ><small v-if="c.known_sizes < c.count"
-            >{{ c.count - c.known_sizes }} неизвестни</small
-          >
-        </div>
-      </section>
-    </div>
+    <LibraryAnalytics
+      :categories="analytics"
+      :loading="analyticsLoading"
+      :error="analyticsError"
+    />
     <div class="panel library-filters">
       <label
         >Търсене по заглавие<input
@@ -1297,36 +1281,6 @@ onUnmounted(() => {
 .toolbar .muted {
   margin-right: auto;
 }
-.analytics-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 14px;
-  margin-bottom: 16px;
-}
-.analytics-grid h2 {
-  font-size: 12px;
-  margin-top: 0;
-}
-.chart-row {
-  display: grid;
-  grid-template-columns: 110px minmax(40px, 1fr) 90px;
-  gap: 10px;
-  align-items: center;
-  font-size: 11px;
-  margin: 12px 0;
-}
-.chart-row b {
-  text-align: right;
-}
-.chart-row small {
-  grid-column: 2/4;
-  color: #93aab1;
-}
-meter {
-  width: 100%;
-  height: 14px;
-  accent-color: #57e3c2;
-}
 .library-filters {
   display: grid;
   grid-template-columns: 2fr repeat(5, 1fr);
@@ -1491,9 +1445,6 @@ details small {
   }
 }
 @media (max-width: 900px) {
-  .analytics-grid {
-    grid-template-columns: 1fr;
-  }
   .compact-cards {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -1504,9 +1455,6 @@ details small {
 @media (max-width: 600px) {
   .compact-cards {
     grid-template-columns: 1fr;
-  }
-  .chart-row {
-    grid-template-columns: 95px minmax(40px, 1fr) 80px;
   }
   .library-filters {
     grid-template-columns: 1fr 1fr;
