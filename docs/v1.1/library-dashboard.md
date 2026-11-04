@@ -11,3 +11,11 @@ The two panels sit beside each other when the Library container has sufficient w
 Regression coverage: `frontend/tests/analytics.test.ts` checks count/byte totals, binary units, sorted bars, shared colors, percentages, zero values, unknown sizes, loading/errors/stale data and crowded-label separation. `frontend/e2e/library-analytics.spec.ts` verifies values, layout, label non-overlap and no page overflow in Chromium at 1600, 1024, 390 and 320 pixels; screenshots are retained in `.test-artifacts` and uploaded by CI. Existing action/menu/delete regressions still run.
 
 No backend changes, production reads/writes, image publication, merge or deployment are part of this addition. Release authorization remains separate.
+
+## Canonical Library wireframe (PR #12)
+
+[Interactive Library wireframe v1.2](../../wireframes/vimag-media-manager-library-v1.2.html) is the current UX reference for the Library page. The original v1.0 full-product wireframe remains historical and must not be used to override PR #12 Library decisions. This new static, interactive mock uses illustrative sample media and example category totals: it does **not** fetch live API data or perform actions.
+
+Canonical behavior is defined by the implemented components `LibraryAnalytics.vue`, `LibraryOperations.vue`, `LibraryActionMenu.vue`, the `en-US` naming rules, and the safety gates. The mock shows the two analytic panels, compact toolbar labels **Нормализация** / **Обследване**, table/card parity, an anchored action menu, guarded delete confirmation, and English-title metadata with original title retained.
+
+The mock is not evidence of pixel-perfect production matching or live normalization. API-derived values and exact destructive behavior are authoritative in the application, not the demo figures.
