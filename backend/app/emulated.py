@@ -134,6 +134,8 @@ class EmulatedTMDb:
             {
                 "id": "1",
                 "title": title,
+                "title_language": "en-US",
+                "english_title_verified": True,
                 "year": year or 2026,
                 "media_type": media_type,
                 "reasons": ["SYNTHETIC_CANDIDATE"],

@@ -51,9 +51,9 @@ const dirty = computed(
   () => JSON.stringify(policy.value) !== JSON.stringify(saved.value),
 );
 const sample = ref({
-  title: "Примерно заглавие",
+  title: "Sample Title",
   year: 2026,
-  artist: "Примерен артист",
+  artist: "Sample Artist",
   edition: "Theatrical",
   season: 1,
   episode: 1,
@@ -77,6 +77,11 @@ async function livePreview() {
           ...sample.value,
           media_type: mediaType.value,
           confirmed: true,
+          title_language: "en-US",
+          english_title_verified: true,
+          collection_override_language: "en-US",
+          episode_title: "Sample Episode",
+          episode_title_language: "en-US",
           episodes: [sample.value.episode],
         },
         data: { bg: "BG_TAGGED", quality_label: "1080p" },

@@ -1,11 +1,14 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref } from "vue";
-defineProps<{ title: string; error?: string }>();
+const props = withDefaults(
+  defineProps<{ title: string; error?: string; dismissible?: boolean }>(),
+  { dismissible: true, error: undefined },
+);
 const emit = defineEmits<{ close: [] }>();
 const panel = ref<HTMLElement>();
 let prior: HTMLElement | null = null;
 function keydown(e: KeyboardEvent) {
-  if (e.key === "Escape") emit("close");
+  if (e.key === "Escape" && props.dismissible) emit("close");
   if (e.key !== "Tab") return;
   const nodes = panel.value?.querySelectorAll<HTMLElement>(
     'button:not(:disabled),input:not(:disabled),select:not(:disabled),textarea:not(:disabled),[tabindex="0"]',
@@ -36,7 +39,7 @@ onUnmounted(() => {
 });
 </script>
 <template>
-  <div class="compact-overlay" @click.self="emit('close')">
+  <div class="compact-overlay" @click.self="dismissible && emit('close')">
     <section
       ref="panel"
       class="compact-dialog"
@@ -47,7 +50,13 @@ onUnmounted(() => {
     >
       <div class="dialog-heading">
         <h2>{{ title }}</h2>
-        <button aria-label="Затвори" @click="emit('close')">×</button>
+        <button
+          aria-label="Затвори"
+          :disabled="!dismissible"
+          @click="emit('close')"
+        >
+          ×
+        </button>
       </div>
       <p v-if="error" role="alert" class="warning">{{ error }}</p>
       <slot />

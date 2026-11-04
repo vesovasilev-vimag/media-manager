@@ -256,6 +256,15 @@ class Worker:
                 int(year_match[0]) if year_match else None,
             )
             identity = None
+            if selected and not selected.get("english_title_verified"):
+                try:
+                    details = self.tmdb.details(selected["id"], media_type)
+                    if not details.get("english_title_verified"):
+                        raise GateError("ENGLISH_TITLE_UNAVAILABLE")
+                    selected = {**selected, **details}
+                except GateError as error:
+                    selected = None
+                    provider_state = error.code
             if selected:
                 identity = identity_dict(
                     Identity(
@@ -266,6 +275,11 @@ class Worker:
                         edition=edition,
                         part=int(part_match[1]) if part_match else None,
                         confirmed=True,
+                        original_title=selected.get("original_title"),
+                        original_name=selected.get("original_name"),
+                        title_language="en-US",
+                        english_title_verified=True,
+                        title_provenance="TMDb:en-US",
                         season=int(parsed_episode[1]) if parsed_episode else None,
                         episodes=list(
                             range(

@@ -5,6 +5,7 @@ from pathlib import PurePosixPath
 from typing import Any
 
 from app.domain import CATEGORIES, GateError, component, relative
+from app.english_metadata import require_english
 
 TOKENS = {
     "Title",
@@ -173,8 +174,12 @@ def validate_for_save(policy: dict[str, Any]) -> None:
                         "year": 2026,
                         "media_type": media_type,
                         "confirmed": True,
+                        "title_language": "en-US",
+                        "english_title_verified": True,
                         "season": 1,
                         "episodes": [1],
+                        "episode_title": "Sample Episode",
+                        "episode_title_language": "en-US",
                         "artist": "Sample Artist",
                         "edition": "Extended",
                     },
@@ -200,6 +205,7 @@ def render(
     ):
         raise GateError("IDENTITY_REVIEW_REQUIRED")
     conf = policy["categories"].get(category, {})
+    require_english(identity)
     rule = conf.get("routes", {}).get(media_type)
     if not rule:
         raise GateError("CATEGORY_CONFLICT")
@@ -210,10 +216,22 @@ def render(
     if media_type == "show" and (identity.get("season") is None or not episodes):
         raise GateError("EPISODE_MAPPING_REQUIRED")
     collection = (
-        identity.get("collection_override", identity.get("collection_name", ""))
+        identity.get("collection_override") or identity.get("collection_name") or ""
         if policy["collections"]
         else ""
     )
+    if collection and "{CollectionName}" in "".join(rule["folders"] + rule["filename"]):
+        language = (
+            identity.get("collection_override_language")
+            if identity.get("collection_override")
+            else identity.get("collection_language")
+        )
+        if language != "en-US":
+            raise GateError("ENGLISH_COLLECTION_REVIEW_REQUIRED")
+    if "{EpisodeTitle}" in "".join(rule["folders"] + rule["filename"]) and (
+        not identity.get("episode_title") or identity.get("episode_title_language") != "en-US"
+    ):
+        raise GateError("ENGLISH_EPISODE_TITLE_UNAVAILABLE")
     values = {
         "Title": identity["title"],
         "SeriesTitle": identity["title"],

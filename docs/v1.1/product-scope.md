@@ -25,6 +25,8 @@
 
 ## HIER-01, NAME-01 — configurable hierarchy and naming
 
+**Owner-approved English naming amendment (2026-11-04):** default normalized titles, collection folders and episode titles included in templates use authoritative English metadata. TMDb search/details request `en-US` and use localized `title` / `name`; original-language fields remain separate. Existing confirmed IDs are reused with English metadata. Missing English authority or conflicting explicit manual title overrides require `NeedsReview`, never guessed translation. Only an approved exact normalization plan may change filesystem paths. This supersedes the historical original-language naming default; Bulgarian-first audio preservation remains unchanged. See [English naming implementation](english-naming.md).
+
 - Settings → Library Organisation: nested hierarchy tree with visual drag & drop; per-category hierarchy and optional levels; drag & drop naming tokens for folder/file/subtitle formats, individual rules by media type, live example and validation.
 - Approved default hierarchy:
   `Library/Movies/<Movie Title (Year)>/<video>`;

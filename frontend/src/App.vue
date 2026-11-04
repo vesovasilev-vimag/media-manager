@@ -582,10 +582,16 @@ onUnmounted(() => {
         <div class="row">
           <span
             class="badge"
-             :class="health?.write_enabled && health?.production_authorized ? 'success' : 'warn'"
-            >{{ health?.write_enabled && health?.production_authorized
-            ? "Операции активни"
-            : "Операции неактивни" }}</span
+            :class="
+              health?.write_enabled && health?.production_authorized
+                ? 'success'
+                : 'warn'
+            "
+            >{{
+              health?.write_enabled && health?.production_authorized
+                ? "Операции активни"
+                : "Операции неактивни"
+            }}</span
           ><button
             class="icon"
             aria-label="Обнови"

@@ -347,6 +347,27 @@ class Jellyfin(Remote):
 
 
 class TMDb(Remote):
+    language = "en-US"
+
+    @staticmethod
+    def english_name(data: dict[str, Any], field: str) -> str | None:
+        """An en-US request alone does not prove a translation: TMDb can fall back."""
+        title = data.get(field)
+        if not isinstance(title, str) or not title.strip():
+            return None
+        if data.get("original_language") == "en":
+            return title.strip()
+        translations = data.get("translations", {}).get("translations", [])
+        for translation in translations:
+            translated = translation.get("data", {}).get(field)
+            if (
+                translation.get("iso_639_1") == "en"
+                and isinstance(translated, str)
+                and translated.strip() == title.strip()
+            ):
+                return title.strip()
+        return None
+
     def __init__(self, config: Settings, transport: httpx.BaseTransport | None = None):
         super().__init__(
             "TMDB",
@@ -360,14 +381,22 @@ class TMDb(Remote):
 
     def search(self, title: str, media_type: str, year: int | None) -> list[dict[str, Any]]:
         route = "tv" if media_type == "show" else "movie"
-        params: dict[str, Any] = {"query": title, "language": "bg-BG", "include_adult": "false"}
+        params: dict[str, Any] = {
+            "query": title,
+            "language": self.language,
+            "include_adult": "false",
+        }
         if year:
             params["first_air_date_year" if route == "tv" else "year"] = year
         candidates = self.request("GET", "search/" + route, params=params).json().get("results", [])
         return [
             {
                 "id": str(c["id"]),
-                "title": c.get("original_title", c.get("original_name")),
+                "title": c.get("title" if route == "movie" else "name"),
+                "original_title": c.get("original_title"),
+                "original_name": c.get("original_name"),
+                "title_language": self.language,
+                "english_title_verified": c.get("original_language") == "en",
                 "year": int((c.get("release_date") or c.get("first_air_date") or "0")[:4]),
                 "media_type": media_type,
                 "poster_path": c.get("poster_path"),
@@ -382,20 +411,68 @@ class TMDb(Remote):
             raise GateError("INVALID_PROVIDER_ID")
         route = "tv" if media_type == "show" else "movie"
         data = self.request(
-            "GET", route + "/" + provider_id, params={"append_to_response": "external_ids"}
+            "GET",
+            route + "/" + provider_id,
+            params={"language": self.language, "append_to_response": "external_ids,translations"},
         ).json()
+        title = self.english_name(data, "name" if route == "tv" else "title")
+        if not title:
+            raise GateError("ENGLISH_TITLE_UNAVAILABLE")
         date = data.get("release_date") or data.get("first_air_date") or ""
         collection = data.get("belongs_to_collection") or {}
+        collection_name = None
+        if collection.get("id"):
+            try:
+                details = self.request(
+                    "GET",
+                    "collection/" + str(collection["id"]),
+                    params={
+                        "language": self.language,
+                    },
+                ).json()
+                details["translations"] = self.request(
+                    "GET", "collection/" + str(collection["id"]) + "/translations"
+                ).json()
+                collection_name = self.english_name(details, "name")
+            except GateError:
+                # The title is still usable when the policy omits collection folders.
+                pass
         return {
             "provider_id": str(data["id"]),
-            "title": data.get("original_title", data.get("original_name")),
+            "title": title,
+            "original_title": data.get("original_title"),
+            "original_name": data.get("original_name"),
+            "title_language": self.language,
+            "english_title_verified": True,
             "year": int(date[:4]) if date[:4].isdecimal() else None,
             "imdb_id": data.get("imdb_id") or data.get("external_ids", {}).get("imdb_id"),
             "collection_id": str(collection["id"]) if collection.get("id") else None,
-            "collection_name": collection.get("name"),
+            "collection_name": collection_name,
+            "collection_language": self.language if collection_name else None,
             "provenance": "TMDb-detail",
             "poster_path": data.get("poster_path"),
             "backdrop_path": data.get("backdrop_path"),
+        }
+
+    def episode(self, provider_id: str, season: int, episode: int) -> dict[str, Any]:
+        if not provider_id.isdecimal() or not 0 <= season <= 999 or not 1 <= episode <= 999:
+            raise GateError("INVALID_EPISODE_ID")
+        data = self.request(
+            "GET",
+            f"tv/{provider_id}/season/{season}/episode/{episode}",
+            params={
+                "language": self.language,
+                "append_to_response": "translations",
+            },
+        ).json()
+        title = self.english_name(data, "name")
+        if not title:
+            raise GateError("ENGLISH_EPISODE_TITLE_UNAVAILABLE")
+        return {
+            "episode_title": title,
+            "episode_title_language": self.language,
+            "season": season,
+            "episode": episode,
         }
 
     def artwork(self, image_path: str) -> bytes:

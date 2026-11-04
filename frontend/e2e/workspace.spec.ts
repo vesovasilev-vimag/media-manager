@@ -118,7 +118,7 @@ test("v1.1 server pagination, compact plans, policy revisions and persistent col
     .getByRole("navigation", { name: "Основна навигация" })
     .getByRole("button", { name: "Библиотека", exact: true })
     .click();
-  await page.getByRole("button", { name: "Обследвай библиотеката" }).click();
+  await page.getByRole("button", { name: "Обследване", exact: true }).click();
   await expect(
     page.locator(".library-operations .notice").first(),
   ).toContainText("COMPLETED", { timeout: 60000 });
@@ -148,17 +148,19 @@ test("v1.1 server pagination, compact plans, policy revisions and persistent col
     .click();
   await page
     .locator(".action-pop")
-    .getByRole("button", { name: "Изтриване", exact: true })
+    .getByRole("menuitem", { name: "Изтриване", exact: true })
     .click();
   await page.getByRole("button", { name: "Анализирай", exact: true }).click();
-  const dialog = page.getByRole("dialog", { name: "Физическо изтриване" });
+  const dialog = page.getByRole("dialog", {
+    name: "Потвърждение за изтриване",
+  });
   await expect(dialog).toContainText("AwaitingApproval", { timeout: 30000 });
   await expect(
-    dialog.getByRole("button", { name: "Изтрий потвърдените файлове" }),
+    dialog.getByRole("button", { name: "Потвърди изтриването" }),
   ).toBeDisabled();
   await page.keyboard.press("Escape");
   await expect(dialog).not.toBeVisible();
-  await page.evaluate(()=>window.scrollTo(0,0));
+  await page.evaluate(() => window.scrollTo(0, 0));
   await page.screenshot({
     path: "../.test-artifacts/library-v11-desktop.png",
     fullPage: true,
@@ -207,7 +209,7 @@ test("v1.1 server pagination, compact plans, policy revisions and persistent col
   await expect(page.locator(".organization")).toContainText(
     "Файлови операции: 0",
   );
-  await page.evaluate(()=>window.scrollTo(0,0));
+  await page.evaluate(() => window.scrollTo(0, 0));
   await page.screenshot({
     path: "../.test-artifacts/settings-v11-desktop.png",
     fullPage: true,

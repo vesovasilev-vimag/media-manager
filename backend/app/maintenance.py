@@ -83,6 +83,10 @@ def execute(worker: Any, task: dict[str, Any]) -> bool:
     ):
         raise GateError("MAINTENANCE_APPROVAL_REQUIRED")
     worker.write_gate()
+    if d["action"] == "NORMALIZE":
+        from app.english_metadata import require_english
+
+        require_english(d["identity"])
     worker.nas_health()
     resources = [
         "library-scan",
