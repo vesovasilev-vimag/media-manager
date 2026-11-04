@@ -32,6 +32,25 @@ def validate_manifest(path, version, commit):
         if not re.fullmatch(re.escape(repo) + r"@sha256:[a-f0-9]{64}", data.get("images", {}).get(name, "")):
             raise ValueError("Missing digest for " + name)
 
+def validate(manifest):
+    """Backward-compatible validation for historical RC1 evidence.
+
+    Production v0.x releases use validate_source and validate_manifest instead.
+    """
+    if manifest.get("version") != "1.0.0-rc.1":
+        raise ValueError("Invalid historical RC1 version")
+    if not re.fullmatch(r"[a-f0-9]{40}", str(manifest.get("commit", ""))):
+        raise ValueError("Missing immutable source commit")
+    if manifest.get("compatible_schemas") != ["0001"]:
+        raise ValueError("Invalid RC1 schema")
+    if not manifest.get("platforms"):
+        raise ValueError("Missing architecture evidence")
+    for name, repo in REPOS.items():
+        image = manifest.get("images", {}).get(name, "")
+        if not re.fullmatch(re.escape(repo) + r"@sha256:[a-f0-9]{64}", image):
+            raise ValueError("Missing published digest: " + name)
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--version", required=True)
