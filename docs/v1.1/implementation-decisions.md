@@ -14,3 +14,12 @@ The owner-approved product decisions remain in [decisions.md](decisions.md). The
 | ENG-08 | Existing/manual sidecars require exact association or durable ownership | Exact video-stem subtitles/NFO and verified exclusive manifests can accompany an item. Shared collection/show art and unknown directory sidecars remain protected and are shown in the preview. |
 | ENG-09 | Preserve provenance `BG_TAGGED`; accept it for v1.1 naming/preservation | This applies BG-01 without pretending a stream tag is human verification. Missing or contradictory evidence remains uncertain. |
 | ENG-10 | Real Jellyfin compatibility fixture uses pinned 10.10.7 on an internal Docker network | Verifies actual collection-directory traversal, editions and subtitle parser behavior with original generated media. It is evidence for that version, not a claim about the production installation. |
+
+## Library-first amendment (2026-11-04)
+
+| ID | Decision | Rationale / verification |
+|---|---|---|
+| ENG-11 | Separate physical ownership guard from torrent dependency guard | Only normalization uses physical ownership alone. Delete/quarantine/restore retain existing torrent protections. Legacy API normalization follows the same boundary and rejects stale asset revisions. |
+| ENG-12 | Additive JSONB inspection evidence and durable LIBRARY_INSPECT tasks | No schema migration; API never receives NAS mounts or provider credentials. Manual search/ID lookup and single-asset reanalysis use existing leases, CSRF/idempotency and audit. |
+| ENG-13 | Exact title/type/year unique match plus verified English details for automatic identity | A single approximate search result is insufficient. Manual title/category/edition/collection decisions survive scans; unavailable authority remains reviewable. |
+| ENG-14 | Preserve corrected catalogue category while scanning historical physical roots | Avoid duplicate insertion and reclassification of neighbouring media when an asset is corrected before its filesystem normalization. |

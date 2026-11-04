@@ -1,5 +1,7 @@
 # ViMag Media Manager v1.1 — approved product scope
 
+> **2026-11-04 Library-first amendment:** For NAS Library inspection, enrichment and normalization, [Library-first normalization](library-first-normalization.md) supersedes historical torrent-dependency gating below. Torrent records and `missingFiles` are not Library normalization blockers. Physical ownership, fingerprints, paths, collisions, exact approvals, leases, journal/recovery and production write authorization remain mandatory. Delete/quarantine and download/import retain their separate dependency protections.
+
 **Documentation version:** 1.1.0-spec.1 (2026-11-02)
 **Scope status:** approved business behaviour; engineering decisions detailed separately.
 **Environment:** ViMag Docker host, PostgreSQL, qBittorrent, NAS /mnt/nas/Movies/Library, Jellyfin; production RC1 remains READ ONLY.
@@ -62,10 +64,10 @@
 
 - Scope: individual file, selected files, one category or whole library. Future policy changes can trigger a new proposed plan.
 - `Analyze → Preview → one approval → automatic execution` with phased stages: **(1) metadata/identity, (2) hierarchy/naming, (3) subtitle improvements, (4) Jellyfin refresh/verification**. File-level state and locks, durable journal, policy version snapshot and explicit old→new changes.
-- Safe items proceed automatically; individual ambiguous/conflicted/blocked files go to NeedsReview while others **CONTINUE**. Preview includes counts, rename/move/sidecar proposals and blocked dependencies; an accepted plan does not authorize any unrelated deletion.
+- Safe items proceed automatically; individual ambiguous/conflicted/blocked files go to NeedsReview while others **CONTINUE**. Preview includes counts, rename/move/sidecar proposals and physical ownership conflicts; an accepted plan does not authorize any unrelated deletion.
 - UI: compact bulk Normalize entrypoint + plan view + progress by phase and file; Pause, Resume, Cancel remaining, Retry failed, recovery details and action history. Resume after restart without reapplying moves or double-rotating subtitle history.
 - `NoChange` for already correct files. No automatic Quarantine or Delete within normalization.
-- Legacy qBt torrents are protected from autonomous payload rename/move; safe owned sidecars may be handled only with explicit dependency/ownership checks.
+- Library normalization is NAS-first: legacy torrent records do not gate planning or execution and no torrent is modified. Unknown physical ownership, links and sidecars still require review; exact approval and all filesystem safeguards remain mandatory.
 
 ## QUAR-01 — quarantine
 

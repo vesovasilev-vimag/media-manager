@@ -29,6 +29,8 @@ interface Media extends Asset {
 }
 interface FileRecord {
   id: string;
+  asset_id: string;
+  review_state?: string;
   state: string;
   phase: number;
   data: {
@@ -38,6 +40,8 @@ interface FileRecord {
     error_code?: string;
     files?: { source: string; target?: string; size: number }[];
     warnings?: string[];
+    metadata_changes?: Record<string, { current: unknown; proposed: unknown }>;
+    versions?: { path: string; reason: string }[];
     preserved_sidecars?: string[];
     sidecar_proposals?: { target: string; kind: string }[];
   };
@@ -173,6 +177,10 @@ const subtitleContent = ref(""),
   subtitleTiming = ref(false),
   subtitleProvider = ref("manual"),
   subtitleRelease = ref("");
+const reviewMode = ref(false);
+const proposalFilter = ref("");
+const identitySearchTask = ref<string>();
+const identitySearch = ref("");
 const identityAsset = ref<Media>();
 const manualEnglish = ref(false);
 const identityCandidates = ref<
@@ -199,11 +207,16 @@ const identityForm = ref({
   episode: 1,
   artist: "",
   collection_override: "",
+  category: "movies",
+  supplementary: false,
+  separate_edition: false,
 });
 function editIdentity(row: Media) {
+  identitySearchTask.value = undefined;
   manualEnglish.value = false;
   identityAsset.value = row;
   menu.value = undefined;
+  identitySearch.value = row.data.inspection?.parsed?.title ?? row.title;
   const i = row.data.identity;
   identityForm.value = {
     title: i?.title ?? row.title,
@@ -215,6 +228,9 @@ function editIdentity(row: Media) {
     episode: i?.episodes?.[0] ?? 1,
     artist: i?.artist ?? "",
     collection_override: String(i?.collection_override ?? ""),
+    category: row.category,
+    supplementary: i?.supplementary ?? false,
+    separate_edition: i?.separate_edition ?? false,
   };
   identityCandidates.value = [];
   void attempt(async () => {
@@ -230,9 +246,12 @@ async function saveIdentity() {
     const value = identityForm.value;
     await api(`/library/assets/${identityAsset.value!.id}/identity`, "POST", {
       expected_revision: identityAsset.value!.revision,
+      category: value.category,
       identity: {
         ...Object.fromEntries(
-          Object.entries(value).filter(([key]) => key !== "episode"),
+          Object.entries(value).filter(
+            ([key]) => !["episode", "category"].includes(key),
+          ),
         ),
         provider_id: value.provider_id || null,
         episodes: value.media_type === "show" ? [value.episode] : [],
@@ -248,9 +267,56 @@ async function saveIdentity() {
           : {}),
       },
     });
+    await api(`/library/assets/${identityAsset.value!.id}/reanalyze`, "POST");
     identityAsset.value = undefined;
     await load();
   });
+}
+async function searchIdentity() {
+  await attempt(async () => {
+    const result = await api<{ operation_id: string }>(
+      `/library/assets/${identityAsset.value!.id}/identity-search`,
+      "POST",
+      {
+        title: identitySearch.value,
+        media_type: identityForm.value.media_type,
+        year: identityForm.value.year || null,
+      },
+    );
+    identitySearchTask.value = result.operation_id;
+  });
+}
+async function lookupIdentity() {
+  await attempt(async () => {
+    const result = await api<{ operation_id: string }>(
+      `/library/assets/${identityAsset.value!.id}/identity-lookup`,
+      "POST",
+      {
+        provider_id: identityForm.value.provider_id,
+        media_type: identityForm.value.media_type,
+      },
+    );
+    identitySearchTask.value = result.operation_id;
+  });
+}
+async function correctProposal(assetId: string) {
+  await attempt(async () =>
+    editIdentity(await api<Media>(`/library/assets/${assetId}`)),
+  );
+}
+async function reanalyzeAsset(row: Media) {
+  await attempt(async () => {
+    await api(`/library/assets/${row.id}/reanalyze`, "POST");
+  });
+}
+function refreshProposal(assetId: string) {
+  start("normalize", [assetId]);
+  void analyze();
+}
+function toggleReview() {
+  reviewMode.value = !reviewMode.value;
+  offset.value = 0;
+  void load();
 }
 async function selectMatching() {
   await attempt(async () => {
@@ -321,7 +387,7 @@ async function load() {
     for (const [k, v] of Object.entries(criteria.value))
       if (v) params.set(k, v);
     const result = await api<{ items: Media[]; total: number }>(
-      "/library/assets?" + params,
+      "/library/assets?" + (reviewMode.value ? "review=true&" : "") + params,
     );
     if (current === generation) {
       rows.value = result.items;
@@ -372,6 +438,7 @@ function start(which: string, ids?: string[]) {
   error.value = "";
   menu.value = undefined;
   fileOffset.value = 0;
+  proposalFilter.value = "";
   if (ids) selected.value = ids;
   deleteTargets.value =
     which === "delete"
@@ -424,7 +491,7 @@ async function updateOperation() {
   if (!operation.value) return;
   const current = operationGeneration;
   const value = await api<Maintenance>(
-    `/library/${operationRoutes[action.value]}/${operation.value.id}?offset=${fileOffset.value}`,
+    `/library/${operationRoutes[action.value]}/${operation.value.id}?offset=${fileOffset.value}${proposalFilter.value ? "&review_state=" + proposalFilter.value : ""}`,
   );
   if (current === operationGeneration) operation.value = value;
 }
@@ -468,13 +535,9 @@ async function control(command: string) {
 }
 async function startScan() {
   await attempt(async () => {
-    const result = await api<{ id: string }>(
-      "/library/scans",
-      "POST",
-      criteria.value.category
-        ? { category: criteria.value.category }
-        : { all: true },
-    );
+    const result = await api<{ id: string }>("/library/scans", "POST", {
+      all: true,
+    });
     scan.value = await api(`/library/scans/${result.id}`);
   });
 }
@@ -562,6 +625,10 @@ watch(
   { deep: true },
 );
 watch(fileOffset, () => void updateOperation());
+watch(proposalFilter, () => {
+  fileOffset.value = 0;
+  void updateOperation();
+});
 onMounted(() => {
   void attempt(async () => {
     await Promise.all([load(), aggregate()]);
@@ -569,6 +636,26 @@ onMounted(() => {
   poll = setInterval(() => {
     if (!busy.value)
       void attempt(async () => {
+        if (identitySearchTask.value && identityAsset.value) {
+          const task = await api<{ state: string }>(
+            `/library/inspections/${identitySearchTask.value}`,
+          );
+          if (task.state === "DONE") {
+            identityCandidates.value = (
+              await api<{ items: typeof identityCandidates.value }>(
+                `/library/assets/${identityAsset.value.id}/identity-candidates`,
+              )
+            ).items;
+            identitySearchTask.value = undefined;
+          } else if (
+            !["QUEUED", "RUNNING", "RECONCILING", "RETRYABLE"].includes(
+              task.state,
+            )
+          ) {
+            identitySearchTask.value = undefined;
+            throw new Error("TMDb търсенето е недостъпно. Опитайте отново.");
+          }
+        }
         if (operation.value) await updateOperation();
         if (history.value) await refreshHistory();
         if (scan.value && ["QUEUED", "RUNNING"].includes(scan.value.state))
@@ -596,6 +683,8 @@ onUnmounted(() => {
         ⚙ Нормализация</button
       ><button :disabled="busy" aria-label="Обследване" @click="startScan">
         ⟳ Обследване</button
+      ><button :aria-pressed="reviewMode" @click="toggleReview">
+        За преглед</button
       ><button @click="showHistory">Карантина</button>
     </div>
     <p
@@ -626,6 +715,64 @@ onUnmounted(() => {
         {{ entry.category }} · {{ entry.path }} · {{ entry.code }}
       </p>
     </details>
+    <section v-if="reviewMode" class="panel" aria-label="Библиотека за преглед">
+      <h3>За преглед · {{ total }} файла</h3>
+      <article v-for="row in rows" :key="row.id" class="plan-row">
+        <strong>{{ row.title }}</strong
+        ><small>{{ row.relative_path }}</small>
+        <p>{{ row.data.inspection?.reason ?? "Необследван файл" }}</p>
+        <small
+          >Разчетено: {{ row.data.inspection?.parsed?.title }} ·
+          {{ row.data.inspection?.parsed?.year }} ·
+          {{ row.data.inspection?.parsed?.media_type }}</small
+        >
+        <p>
+          Текущо: {{ row.data.identity?.title ?? "Неидентифициран" }} ·
+          {{ row.data.identity?.year }}
+        </p>
+        <small
+          >{{ categories[row.category] }} ·
+          {{ row.data.identity?.media_type }} ·
+          {{ row.data.identity?.edition }} ·
+          {{
+            row.data.identity?.collection_override ??
+            row.data.identity?.collection_name
+          }}</small
+        >
+        <small v-if="row.data.identity?.season != null"
+          >Сезон {{ row.data.identity.season }} · епизоди
+          {{ row.data.identity.episodes?.join(", ") }}</small
+        >
+        <div v-if="row.data.inspection?.candidates?.length">
+          <small>Предложени TMDb кандидати</small>
+          <button
+            v-for="candidate in row.data.inspection.candidates"
+            :key="candidate.id"
+            :disabled="busy"
+            @click="
+              editIdentity(row);
+              chooseIdentityCandidate(candidate);
+            "
+          >
+            {{ candidate.title }} ({{ candidate.year }}) · TMDb
+            {{ candidate.id }}
+          </button>
+        </div>
+        <p v-if="row.data.inspection?.proposed_identity">
+          Предложение: {{ row.data.inspection.proposed_identity.title }} ·
+          {{ row.data.inspection.proposed_identity.year }}
+        </p>
+        <div class="row">
+          <button :disabled="busy" @click="editIdentity(row)">
+            Коригирай идентификацията</button
+          ><button :disabled="busy" @click="reanalyzeAsset(row)">
+            Обследвай този файл</button
+          ><button :disabled="busy" @click="refreshProposal(row.id)">
+            Обнови предложението
+          </button>
+        </div>
+      </article>
+    </section>
     <LibraryAnalytics
       :categories="analytics"
       :loading="analyticsLoading"
@@ -1003,9 +1150,22 @@ onUnmounted(() => {
             >0{{ i + 1 }} · {{ p }}</span
           >
         </div>
+        <label v-if="action === 'normalize'"
+          >Предложения<select
+            v-model="proposalFilter"
+            aria-label="Филтър на предложенията"
+          >
+            <option value="">Всички</option>
+            <option value="Ready">Ready</option>
+            <option value="NeedsReview">NeedsReview</option>
+            <option value="Unidentified">Unidentified</option>
+            <option value="Conflict">Conflict</option>
+            <option value="AlreadyNormalized">Already normalized</option>
+          </select></label
+        >
         <div v-for="f in operation.files" :key="f.id" class="plan-row">
           <strong>{{ f.data.title }}</strong
-          ><span>{{ f.state }} · фаза {{ f.phase }}</span
+          ><span>{{ f.review_state ?? f.state }} · фаза {{ f.phase }}</span
           ><small
             >{{ f.data.source }} →
             {{
@@ -1016,6 +1176,27 @@ onUnmounted(() => {
             >{{ entry.source }} → {{ entry.target ?? "Премахване" }} ·
             {{ bytes(entry.size) }}</small
           >
+          <dl v-if="f.data.metadata_changes">
+            <template
+              v-for="(change, key) in f.data.metadata_changes"
+              :key="key"
+              ><dt>{{ key }}</dt>
+              <dd>
+                {{ change.current ?? "—" }} → {{ change.proposed }}
+              </dd></template
+            >
+          </dl>
+          <small v-for="version in f.data.versions" :key="version.path"
+            >Версия: {{ version.path }} · {{ version.reason }} · запазва се
+            ??</small
+          >
+          <div v-if="action === 'normalize'" class="row">
+            <button :disabled="busy" @click="correctProposal(f.asset_id)">
+              Коригирай идентификацията</button
+            ><button :disabled="busy" @click="refreshProposal(f.asset_id)">
+              Обнови предложението
+            </button>
+          </div>
           <p v-if="f.data.error_code" class="warning">
             {{ f.data.error_code }}
           </p>
@@ -1209,6 +1390,20 @@ onUnmounted(() => {
       title="Идентификация и колекция"
       @close="identityAsset = undefined"
       ><p>{{ identityAsset.relative_path }}</p>
+      <p>{{ identityAsset.data.inspection?.reason }}</p>
+      <p>
+        Разчетено: {{ identityAsset.data.inspection?.parsed?.title }} ·
+        {{ identityAsset.data.inspection?.parsed?.year }} ·
+        {{ identityAsset.data.inspection?.parsed?.media_type }}
+      </p>
+      <label>TMDb търсене<input v-model="identitySearch" /></label
+      ><button
+        :disabled="busy || !identitySearch || !!identitySearchTask"
+        @click="searchIdentity"
+      >
+        Търси в TMDb
+      </button>
+      <p v-if="identitySearchTask" role="status">Търсене в TMDb…</p>
       <div v-if="identityCandidates.length">
         <p>Кандидати от TMDb · изберете и потвърдете точната идентичност</p>
         <button
@@ -1237,7 +1432,31 @@ onUnmounted(() => {
         >TMDb ID<input
           v-model="identityForm.provider_id"
           inputmode="numeric" /></label
-      ><label>Издание<input v-model="identityForm.edition" /></label
+      ><button
+        :disabled="busy || !identityForm.provider_id || !!identitySearchTask"
+        @click="lookupIdentity"
+      >
+        Зареди TMDb ID
+      </button>
+      <label
+        >Категория<select v-model="identityForm.category">
+          <option v-for="(label, key) in categories" :key="key" :value="key">
+            {{ label }}
+          </option>
+        </select></label
+      >
+      <label>Издание<input v-model="identityForm.edition" /></label>
+      <label class="check"
+        ><input
+          v-model="identityForm.supplementary"
+          type="checkbox"
+        />Допълнителен материал</label
+      >
+      <label class="check"
+        ><input
+          v-model="identityForm.separate_edition"
+          type="checkbox"
+        />Отделно издание</label
       ><label
         >Ръчна колекция<input v-model="identityForm.collection_override"
       /></label>

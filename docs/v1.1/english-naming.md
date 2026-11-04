@@ -1,5 +1,7 @@
 # Mandatory English naming and Library UX
 
+> **2026-11-04 Library-first amendment:** For NAS Library inspection, enrichment and normalization, [Library-first normalization](library-first-normalization.md) supersedes historical torrent-dependency gating below. Torrent records and `missingFiles` are not Library normalization blockers. Physical ownership, fingerprints, paths, collisions, exact approvals, leases, journal/recovery and production write authorization remain mandatory. Delete/quarantine and download/import retain their separate dependency protections.
+
 Owner authorization: 2026-11-04. This PR targets `main`; it does not authorize merge, release publication, Docker Hub access, deployment, production database/NAS changes or torrent changes.
 
 ## Naming authority
@@ -12,7 +14,7 @@ English metadata cache keys include `en-US`, media type and provider ID; episode
 
 Normalization reuses confirmed IDs and updates the **proposed** identity title while preserving editions, IDs, original titles, BG evidence and unrelated metadata. Metadata retrieval writes only the language-specific cache; it does not rewrite asset identity or media paths. Explicit manual title provenance and historical identity-confirmation audit entries protect conflicting manual titles by sending them to review. The existing identity editor records manual provenance and offers an explicit English acknowledgement for authoritative human corrections; metadata edits still never move a file. Without provider authority or an explicit English confirmation, normalization requires review.
 
-The policy renderer rejects unverified naming language, including collections/episode titles when used. Analysis creates an exact destination plan. Approval still binds its revision and hash. Execution revalidates the frozen normalization target; no metadata refresh changes an already-approved destination. Older plans lacking English evidence must be reviewed before new mutations rather than silently rewritten. Fingerprint, collision, sidecar ownership, dependency, authorization, lease/fencing and journal guards remain mandatory. Metadata edits preserve unrelated identity fields and invalidate stale English evidence when the title/ID changes without new confirmation. The legacy normalization-plan route also requires explicit English evidence.
+The policy renderer rejects unverified naming language, including collections/episode titles when used. Analysis creates an exact destination plan. Approval still binds its revision and hash. Execution revalidates the frozen normalization target; no metadata refresh changes an already-approved destination. Older plans lacking English evidence must be reviewed before new mutations rather than silently rewritten. Fingerprint, collision, sidecar ownership, physical ownership, authorization, lease/fencing and journal guards remain mandatory. Metadata edits preserve unrelated identity fields and invalidate stale English evidence when the title/ID changes without new confirmation. The legacy normalization-plan route also requires explicit English evidence.
 
 ## Library UX
 

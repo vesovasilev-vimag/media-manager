@@ -22,3 +22,7 @@ Final compatibility review added migration-only backfill from existing RC1 quara
 ## Safety boundary
 
 Only local synthetic containers/volumes are used. Production NAS, torrents and settings have not been accessed or changed. Production Compose write/intake defaults remain false. Published RC1 tags/images are not modified. Missing provider credentials produce explicit unavailable/review states, not simulated production success.
+
+## Library-first amendment (2026-11-04)
+
+Dedicated branch `feat/library-first-normalization` starts at v1.1.1 / PR #12 (`3d34ecf`). Implemented independent normalization, full metadata inspection, persistent Library review queue, queued TMDb search/ID lookup, manual corrections and per-asset reanalysis, preview filters and version evidence. Updated wireframe, OpenAPI, requirements and traceability. See [validation report](library-first-report.md). Delivery is an unmerged PR; no release, deploy or production changes are authorized.

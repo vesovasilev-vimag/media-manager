@@ -1083,6 +1083,11 @@ class Worker:
             if task["kind"] == "INVENTORY":
                 self.inventory(task)
                 done = True
+            elif task["kind"] == "LIBRARY_INSPECT":
+                from app.library_inspection import execute as inspect_library
+
+                inspect_library(self, task)
+                done = True
             elif task["kind"] == "BULK_ANALYZE":
                 from app.bulk import analyze
 
@@ -1216,8 +1221,12 @@ class Worker:
         while self.running:
             try:
                 if time.monotonic() - last_poll >= self.cfg.poll_seconds:
-                    self.poll()
                     last_poll = time.monotonic()
+                    try:
+                        self.poll()
+                    except GateError as error:
+                        # Intake health cannot starve independent NAS catalogue tasks.
+                        self.health({"state": "DEGRADED", "qbt": error.code})
                 if not self.run_once():
                     time.sleep(0.5)
             except GateError as error:

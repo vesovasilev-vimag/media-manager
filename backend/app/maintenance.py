@@ -95,8 +95,14 @@ def execute(worker: Any, task: dict[str, Any]) -> bool:
     ]
     db.reserve(task, resources)
     asset = db.one(select(p.assets).where(p.assets.c.id == d["asset_id"]))
-    if d["action"] in {"QUARANTINE", "NORMALIZE"} and dependencies(worker, asset):
+    if d["action"] == "QUARANTINE" and dependencies(worker, asset):
         raise GateError("DEPENDENCY_BLOCKED")
+    if d["action"] == "NORMALIZE":
+        from app.bulk import storage_guard
+
+        if asset["revision"] != d.get("asset_revision") or asset["fingerprint"] != d["fingerprint"]:
+            raise GateError("ASSET_REVISION_STALE")
+        storage_guard(worker, asset, plan_id=plan["id"])
     source = contained(worker.cfg.nas_root, d["source"])
     target = contained(worker.cfg.nas_root, d["target"])
     if d["action"] == "NORMALIZE" and source.parent != target.parent and source.parent.exists():

@@ -1,5 +1,7 @@
 # ViMag Media Manager v1.1
 
+> **2026-11-04 Library-first amendment:** For NAS Library inspection, enrichment and normalization, [Library-first normalization](library-first-normalization.md) supersedes historical torrent-dependency gating below. Torrent records and `missingFiles` are not Library normalization blockers. Physical ownership, fingerprints, paths, collisions, exact approvals, leases, journal/recovery and production write authorization remain mandatory. Delete/quarantine and download/import retain their separate dependency protections.
+
 **Status:** owner-approved requirements consolidated on 2026-11-02; implementation separately authorized by the owner on 2026-11-02 on `codex/v1.1-library-maintenance`, [PR #4](https://github.com/vesovasilev-vimag/media-manager/pull/4). See [progress](implementation-progress.md), [engineering decisions](implementation-decisions.md), [traceability](traceability.md), and [operations/recovery](operations-and-recovery.md). No production release/deployment is authorized by this work.
 **Documentation version:** 1.1.0-spec.1. **Baseline:** existing `codex/rc1` source and published immutable `v1.0.0-rc.1` artifact.
 

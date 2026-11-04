@@ -1,5 +1,7 @@
 # ViMag v1.1 — engineering/API/DB verification contract
 
+> **2026-11-04 Library-first amendment:** For NAS Library inspection, enrichment and normalization, [Library-first normalization](library-first-normalization.md) supersedes historical torrent-dependency gating below. Torrent records and `missingFiles` are not Library normalization blockers. Physical ownership, fingerprints, paths, collisions, exact approvals, leases, journal/recovery and production write authorization remain mandatory. Delete/quarantine and download/import retain their separate dependency protections.
+
 **Status:** approved engineering requirements for future implementation, not implemented; 2026-11-02. Read `docs/v1.1/product-scope.md` and `decisions.md` first. This document contains acceptance obligations rather than a promise of completed implementation.
 
 ## Existing RC1 baseline (observed)
@@ -42,10 +44,10 @@ Prefix all appropriate paths with existing `/api/v1`, evolve OpenAPI contract an
 ## Safety and stage semantics
 
 - Worker is sole filesystem mutator; API has no NAS write mounts. No general `rm -rf` or arbitrary path deletion from client input.
-- Existing 92 legacy qBittorrent torrents must not be modified automatically. Any inventory dependency, unknown dependency, hardlink ownership or seeding uncertainty blocks destructive/moving operations for affected file pending review.
+- Existing 92 legacy qBittorrent torrents must not be modified automatically. Delete/quarantine and import retain torrent dependency checks. Library normalization ignores historical torrent references and checks physical ownership, unknown hardlinks, fingerprints, containment and collisions independently.
 - Require path containment under configured Library (or dedicated Quarantine for restore), no symlink traversal, exact file identity/fingerprint before and after mutating. Sidecars selected by ownership manifest; avoid deleting shared NFO/artwork, collection cover or sibling episode subtitles.
 - Read-only scan can run with writes off because it writes *database inventory only*; physical actions remain fail-closed behind existing deployment gates.
-- Phase 1 identity/metadata builds match evidence; phase 2 hierarchy/naming considers qBt mapping, no unsafe legacy renames; phase 3 subtitle candidate evaluation includes **FPS, duration, encoding**, edition, completeness, language, sync and provider, uses separate atomically published/renamed assets with history; phase 4 Jellyfin refresh verifies targeted item.
+- Phase 1 identity/metadata builds match evidence; phase 2 hierarchy/naming uses NAS ownership and exact approved manifests, independent of legacy torrent mappings; phase 3 subtitle candidate evaluation includes **FPS, duration, encoding**, edition, completeness, language, sync and provider, uses separate atomically published/renamed assets with history; phase 4 Jellyfin refresh verifies targeted item.
 - Pause stops new items and allows currently active operation to reach safe checkpoint; Cancel affects unfinished items, not completed physical operations. Reconcile on crash before retrying.
 - BG audio is accepted when detected by stream evidence as owner's v1.1 policy; retain provenance/uncertainty. BG-first retention of important editions remains. Do not blindly relabel streams lacking Bulgarian signal.
 - No automatic physical deletes or quarantine from normalizations, dedup comparison or policy saves. Explicit DELETE-01 user intent, plan and confirmation only.
@@ -62,7 +64,7 @@ Prefix all appropriate paths with existing `/api/v1`, evolve OpenAPI contract an
 - API count=4119 with pagination boundaries, mixed category/title search, multi-stream audio/subtitle filters and actual byte totals, SQL injection/path input rejects; stable pagination under updates.
 - No false missing assets on inaccessible NAS, partial errors or concurrent scans; changed file detected without repeated full probes; physically deleted or missing records treated consistently.
 - Token drag/drop persistence, nested Collection level and invalid policy rejection; change Settings creates policy revision but performs **zero filesystem operations**.
-- Composite exact-name collision and edition/collection classification; ambiguous TMDb → NeedsReview. Existing qBt-protected file blocks unsafe rename/move.
+- Composite exact-name collision and edition/collection classification; ambiguous TMDb → NeedsReview. Legacy torrent references do not block normalization; ambiguous physical ownership still blocks unsafe rename/move.
 - New BG signal recognized without confirmation; unknown/contradictory signal not fabricated.
 - Subtitle timing/encoding/FPS/duration candidate selection; bad encoding, subtitle misalignment, movie cut mismatch; correct ver-02/ver-03 shift, restore and simulated crash mid-shift; Jellyfin preferred-track discovery.
 - Bulk phases and one approval; file-level error continues other files; pause/retry/cancel idempotency/restart, no duplicate moves or subtitle versions.

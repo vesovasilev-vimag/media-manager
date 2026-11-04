@@ -46,6 +46,20 @@ class IdentityInput(BaseModel):
     model_config = ConfigDict(extra="forbid")
     expected_revision: int = Field(ge=1)
     identity: dict[str, Any]
+    category: Literal["movies", "series", "animations", "documentaries", "concerts"] | None = None
+
+
+class IdentitySearch(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    title: str = Field(min_length=1, max_length=200)
+    media_type: Literal["movie", "show", "concert"]
+    year: int | None = Field(None, ge=1880, le=2200)
+
+
+class IdentityLookup(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    provider_id: str = Field(pattern=r"^[0-9]{1,12}$")
+    media_type: Literal["movie", "show", "concert"]
 
 
 class SubtitleAccept(BaseModel):
@@ -72,6 +86,133 @@ class RestoreScope(BaseModel):
 
 
 def register(app: FastAPI, db: p.Database, admin: Any, command: Any) -> None:
+    @app.get("/api/v1/library/assets/{asset_id}", dependencies=[Depends(admin)])
+    def asset_detail(asset_id: UUID) -> dict[str, Any]:
+        return catalogue.display(db.one(select(p.assets).where(p.assets.c.id == str(asset_id))))
+
+    @app.get("/api/v1/library/inspections/{task_id}", dependencies=[Depends(admin)])
+    def inspection_status(task_id: UUID) -> dict[str, Any]:
+        row = db.one(
+            select(p.tasks).where(p.tasks.c.id == str(task_id), p.tasks.c.kind == "LIBRARY_INSPECT")
+        )
+        return {"id": row["id"], "state": row["state"], "error_code": row["data"].get("error_code")}
+
+    @app.get("/api/v1/library/review", dependencies=[Depends(admin)])
+    def review_queue(
+        limit: int = Query(25, ge=1, le=200), offset: int = Query(0, ge=0)
+    ) -> dict[str, Any]:
+        from sqlalchemy import or_
+
+        query = select(p.assets).where(
+            p.assets.c.workflow_state == "ACTIVE",
+            or_(
+                p.assets.c.data["inspection"]["state"].astext.in_(["Unidentified", "NeedsReview"]),
+                p.assets.c.data["inspection"]["state"].astext.is_(None),
+            ),
+        )
+        with db.engine.connect().execution_options(isolation_level="REPEATABLE READ") as conn:
+            with conn.begin():
+                total = conn.execute(
+                    select(func.count()).select_from(query.subquery())
+                ).scalar_one()
+                rows = (
+                    conn.execute(
+                        query.order_by(p.assets.c.relative_path, p.assets.c.id)
+                        .limit(limit)
+                        .offset(offset)
+                    )
+                    .mappings()
+                    .all()
+                )
+        return {
+            "items": [catalogue.display(dict(row)) for row in rows],
+            "total": total,
+            "limit": limit,
+            "offset": offset,
+        }
+
+    def enqueue_inspection(
+        conn: Any,
+        asset_id: str,
+        actor: str,
+        search: dict[str, Any] | None = None,
+        lookup: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        if not conn.execute(
+            select(p.assets.c.id).where(
+                p.assets.c.id == asset_id, p.assets.c.workflow_state == "ACTIVE"
+            )
+        ).first():
+            raise GateError("NOT_FOUND")
+        tid = p.uid()
+        conn.execute(
+            insert(p.tasks).values(
+                id=tid,
+                kind="LIBRARY_INSPECT",
+                data={
+                    "asset_id": asset_id,
+                    **({"search": search} if search else {}),
+                    **({"lookup": lookup} if lookup else {}),
+                },
+            )
+        )
+        db.event(
+            conn,
+            actor,
+            "LIBRARY_SEARCH_REQUESTED" if search or lookup else "LIBRARY_REANALYSIS_REQUESTED",
+            asset_id,
+        )
+        return {"operation_id": tid}
+
+    @app.post("/api/v1/library/assets/{asset_id}/reanalyze", status_code=202)
+    def reanalyze(
+        asset_id: UUID, request: Request, session: dict[str, Any] = Depends(admin)
+    ) -> dict[str, Any]:
+        with db.transaction() as conn:
+            return command(
+                conn,
+                request,
+                session["user_id"],
+                {},
+                lambda: enqueue_inspection(conn, str(asset_id), session["user_id"]),
+            )
+
+    @app.post("/api/v1/library/assets/{asset_id}/identity-search", status_code=202)
+    def identity_search(
+        asset_id: UUID,
+        body: IdentitySearch,
+        request: Request,
+        session: dict[str, Any] = Depends(admin),
+    ) -> dict[str, Any]:
+        with db.transaction() as conn:
+            return command(
+                conn,
+                request,
+                session["user_id"],
+                body.model_dump(),
+                lambda: enqueue_inspection(
+                    conn, str(asset_id), session["user_id"], body.model_dump()
+                ),
+            )
+
+    @app.post("/api/v1/library/assets/{asset_id}/identity-lookup", status_code=202)
+    def identity_lookup(
+        asset_id: UUID,
+        body: IdentityLookup,
+        request: Request,
+        session: dict[str, Any] = Depends(admin),
+    ) -> dict[str, Any]:
+        with db.transaction() as conn:
+            return command(
+                conn,
+                request,
+                session["user_id"],
+                body.model_dump(),
+                lambda: enqueue_inspection(
+                    conn, str(asset_id), session["user_id"], lookup=body.model_dump()
+                ),
+            )
+
     @app.get("/api/v1/library/analytics", dependencies=[Depends(admin)])
     def analytics() -> dict[str, Any]:
         return catalogue.analytics(db)
@@ -169,7 +310,12 @@ def register(app: FastAPI, db: p.Database, admin: Any, command: Any) -> None:
             .order_by(p.evidence_tables["identity_candidates"].c.created_at.desc())
             .limit(1)
         )
-        return {"items": rows[0]["data"].get("candidates", []) if rows else []}
+        asset = db.one(select(p.assets).where(p.assets.c.id == str(asset_id)))
+        return {
+            "items": rows[0]["data"].get("candidates", [])
+            if rows
+            else asset["data"].get("inspection", {}).get("candidates", [])
+        }
 
     @app.post("/api/v1/library/assets/{asset_id}/identity")
     def identity(
@@ -193,6 +339,8 @@ def register(app: FastAPI, db: p.Database, admin: Any, command: Any) -> None:
             "collection_language",
             "collection_override_language",
             "episode_title_language",
+            "supplementary",
+            "separate_edition",
         }
         if not set(body.identity) <= fields:
             raise GateError("INVALID_IDENTITY")
@@ -207,6 +355,18 @@ def register(app: FastAPI, db: p.Database, admin: Any, command: Any) -> None:
         if parsed.provider_id and not parsed.provider_id.isdecimal():
             raise GateError("INVALID_PROVIDER_ID")
         if not parsed.title or not 1880 <= parsed.year <= 2200:
+            raise GateError("INVALID_IDENTITY")
+        if (
+            parsed.media_type not in {"movie", "show", "concert"}
+            or parsed.season is not None
+            and not 0 <= parsed.season <= 999
+            or any(not 1 <= episode <= 999 for episode in parsed.episodes)
+        ):
+            raise GateError("INVALID_IDENTITY")
+        if any(
+            key in value and not isinstance(value[key], bool)
+            for key in ("supplementary", "separate_edition")
+        ):
             raise GateError("INVALID_IDENTITY")
         with db.transaction() as conn:
 
@@ -239,7 +399,16 @@ def register(app: FastAPI, db: p.Database, admin: Any, command: Any) -> None:
                     "collection_override"
                 ) and not value.get("collection_override_language"):
                     merged["collection_override_language"] = None
-                data = {**row["data"], "identity": merged}
+                data = {
+                    **row["data"],
+                    "identity": merged,
+                    "category": body.category or row["category"],
+                    "inspection": {
+                        **row["data"].get("inspection", {}),
+                        "state": "NeedsReview",
+                        "reason": "MANUAL_CORRECTION_REANALYZE",
+                    },
+                }
                 conn.execute(
                     update(p.assets)
                     .where(p.assets.c.id == str(asset_id))
@@ -313,18 +482,25 @@ def register(app: FastAPI, db: p.Database, admin: Any, command: Any) -> None:
             name=kind + "_status",
         )
         def status(
-            job_id: UUID, limit: int = Query(100, ge=1, le=500), offset: int = Query(0, ge=0)
+            job_id: UUID,
+            limit: int = Query(100, ge=1, le=500),
+            offset: int = Query(0, ge=0),
+            review_state: Literal[
+                "Ready", "NeedsReview", "Unidentified", "Conflict", "AlreadyNormalized"
+            ]
+            | None = None,
         ) -> dict[str, Any]:
             job = db.one(
                 select(p.jobs).where(p.jobs.c.id == str(job_id), p.jobs.c.kind == "BULK_" + kind)
             )
-            files = db.rows(
-                select(p.maintenance_files)
-                .where(p.maintenance_files.c.job_id == str(job_id))
-                .order_by(p.maintenance_files.c.id)
-                .offset(offset)
-                .limit(limit)
+            from app.library_inspection import proposal_state
+
+            query = select(p.maintenance_files, proposal_state().label("review_state")).where(
+                p.maintenance_files.c.job_id == str(job_id)
             )
+            if review_state:
+                query = query.where(proposal_state() == review_state)
+            files = db.rows(query.order_by(p.maintenance_files.c.id).offset(offset).limit(limit))
             groups = db.rows(
                 select(p.maintenance_files.c.state, func.count().label("count"))
                 .where(p.maintenance_files.c.job_id == str(job_id))
