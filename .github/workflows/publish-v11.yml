@@ -1,41 +1,59 @@
-name: Publish ViMag v1.1 stable release (manual)
+name: Publish approved PR12 images 1.1.1
 on:
   workflow_dispatch:
 permissions: {contents: read}
 concurrency:
   group: vimag-v1.1-release
   cancel-in-progress: false
+env:
+  SOURCE_COMMIT: 3d34ecfa947840f7addc048eb465cde4ed079320
+  RELEASE_VERSION: 1.1.1
 jobs:
-  verify:
-    if: github.ref == 'refs/heads/main'
-    uses: ./.github/workflows/ci.yml
-  security:
-    if: github.ref == 'refs/heads/main'
-    uses: ./.github/workflows/security.yml
   prepare:
-    needs: [verify, security]
     runs-on: ubuntu-24.04
     permissions: {contents: write}
     steps:
-      - name: Assert exact release source and credentials
-        env:
-          HUB_USER: ${{ secrets.DOCKERHUB_USERNAME }}
-          HUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
-          GH_TOKEN: ${{ github.token }}
+      - name: Verify approved source and reuse existing required checks
+        env: {GH_TOKEN: '${{ github.token }}'}
         run: |
           set -eu
-          test "$GITHUB_REF" = refs/heads/main
-          test "$HUB_USER" = vesovasilev
-          test -n "$HUB_TOKEN"
-          if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/v1.1.0" > existing-tag.json 2> tag-error.txt; then
-            echo 'BLOCKED: release tag already exists; never overwrite immutable release'
-            exit 1
+          test "$GITHUB_REF" = refs/heads/release/pr12-3d34ecf
+          mkdir -p release
+          gh api "repos/$GITHUB_REPOSITORY/pulls/12" > release/pr12.json
+          jq -e --arg sha "$SOURCE_COMMIT" '.merged == true and .merge_commit_sha == $sha' release/pr12.json
+          gh api "repos/$GITHUB_REPOSITORY/commits/$SOURCE_COMMIT" > release/source.json
+          jq -e '.commit.tree.sha == "9f835c541a4ce1a04efc504551073b84446ead63"' release/source.json
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$SOURCE_COMMIT&event=push&per_page=100" > release/checks.json
+          for name in 'ViMag CI' 'ViMag Security'; do
+            jq -e --arg sha "$SOURCE_COMMIT" --arg name "$name" '[.workflow_runs[] | select(.head_sha == $sha and .name == $name and .status == "completed" and .conclusion == "success")] | length > 0' release/checks.json
+          done
+          if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/v$RELEASE_VERSION" > existing-tag.json 2> tag-error.txt; then
+            echo 'BLOCKED: release tag exists; refusing overwrite'; exit 1
           else
-            grep -q '404' tag-error.txt || { echo 'BLOCKED: could not verify tag absence'; exit 1; }
+            grep -q '404' tag-error.txt || { echo 'Cannot verify release tag absence'; exit 1; }
           fi
-      - name: Create immutable v1.1 release tag
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Verify namespace and both unused image tags
+        env: {HUB_USER: '${{ secrets.DOCKERHUB_USERNAME }}'}
+        run: |
+          set -eu
+          test "$HUB_USER" = vesovasilev
+          for image in web backend; do
+            if docker buildx imagetools inspect "vesovasilev/media-manager-$image:$RELEASE_VERSION" > /dev/null 2> registry-error.txt; then
+              echo 'BLOCKED: image tag exists; refusing overwrite'; exit 1
+            else
+              grep -Eqi 'not found|manifest unknown' registry-error.txt || { cat registry-error.txt; exit 1; }
+            fi
+          done
+      - name: Create new immutable source tag
         env: {GH_TOKEN: '${{ github.token }}'}
-        run: gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" -f ref=refs/tags/v1.1.0 -f sha="$GITHUB_SHA" > /dev/null
+        run: gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" -f ref="refs/tags/v$RELEASE_VERSION" -f sha="$SOURCE_COMMIT" > /dev/null
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with: {name: pr12-source-evidence, path: release}
   publish:
     needs: prepare
     runs-on: ubuntu-24.04
@@ -49,57 +67,71 @@ jobs:
           - {image: backend, context: backend}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
-        with: {ref: v1.1.0}
-      - name: Validate immutable source and target tag
-        run: |
-          set -eu
-          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
-          if docker buildx imagetools inspect vesovasilev/media-manager-${{ matrix.image }}:1.1.0 >/dev/null 2>&1; then
-            echo 'BLOCKED: image tag already exists; never overwrite immutable release'
-            exit 1
-          fi
+        with: {ref: '${{ env.SOURCE_COMMIT }}'}
+      - name: Assert exact build source
+        run: test "$(git rev-parse HEAD)" = "$SOURCE_COMMIT"
       - uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130
       - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
       - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Refuse an existing image tag immediately before publishing
+        run: |
+          set -eu
+          if docker buildx imagetools inspect "vesovasilev/media-manager-${{ matrix.image }}:$RELEASE_VERSION" > /dev/null 2> registry-error.txt; then
+            echo 'BLOCKED: image tag exists; refusing overwrite'; exit 1
+          else
+            grep -Eqi 'not found|manifest unknown' registry-error.txt || { cat registry-error.txt; exit 1; }
+          fi
       - uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8
         id: build
         with:
           context: ${{ matrix.context }}
           push: true
           platforms: linux/amd64,linux/arm64
-          tags: vesovasilev/media-manager-${{ matrix.image }}:1.1.0
+          tags: vesovasilev/media-manager-${{ matrix.image }}:1.1.1
           provenance: mode=max
           sbom: true
           labels: |
-            org.opencontainers.image.revision=${{ github.sha }}
-            org.opencontainers.image.version=1.1.0
+            org.opencontainers.image.revision=3d34ecfa947840f7addc048eb465cde4ed079320
+            org.opencontainers.image.version=1.1.1
             org.opencontainers.image.source=https://github.com/vesovasilev-vimag/media-manager
-      - name: Record digest
+      - name: Verify published digest and source labels on both architectures
         env: {DIGEST: '${{ steps.build.outputs.digest }}'}
         run: |
+          set -eu
+          repository=vesovasilev/media-manager-${{ matrix.image }}
           mkdir -p release
-          jq -n --arg image "vesovasilev/media-manager-${{ matrix.image }}@$DIGEST" '{image:$image}' > release/${{ matrix.image }}.json
+          docker buildx imagetools inspect "$repository@$DIGEST" --raw > release/${{ matrix.image }}-index.json
+          printf '[]\n' > platforms.json
+          for architecture in amd64 arm64; do
+            child=$(jq -er --arg arch "$architecture" '.manifests[] | select(.platform.os == "linux" and .platform.architecture == $arch) | .digest' release/${{ matrix.image }}-index.json)
+            docker pull --platform "linux/$architecture" "$repository@$child"
+            docker image inspect "$repository@$child" > config.json
+            jq -e --arg sha "$SOURCE_COMMIT" --arg version "$RELEASE_VERSION" --arg arch "$architecture" '.[0] | .Architecture == $arch and .Os == "linux" and .Config.Labels["org.opencontainers.image.revision"] == $sha and .Config.Labels["org.opencontainers.image.version"] == $version' config.json
+            jq --arg digest "$child" '.[0] | {platform:(.Os + "/" + .Architecture),manifest_digest:$digest,config_digest:.Id,revision:.Config.Labels["org.opencontainers.image.revision"],version:.Config.Labels["org.opencontainers.image.version"]}' config.json > platform.json
+            jq -s '.[0] + [.[1]]' platforms.json platform.json > next.json
+            mv next.json platforms.json
+          done
+          jq -n --arg image "$repository@$DIGEST" --arg tag "$repository:$RELEASE_VERSION" --arg commit "$SOURCE_COMMIT" --slurpfile platforms platforms.json '{image:$image,tag:$tag,commit:$commit,platforms:$platforms[0]}' > release/${{ matrix.image }}.json
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        with: {name: 'v11-image-${{ matrix.image }}', path: release}
+        with: {name: 'pr12-image-${{ matrix.image }}', path: release}
   manifest:
     needs: publish
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
-        with: {ref: v1.1.0}
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
-        with: {pattern: v11-image-*, path: release, merge-multiple: true}
-      - name: Validate release and package immutable deploy inputs
+        with: {pattern: pr12-image-*, path: release, merge-multiple: true}
+      - name: Package exact image overrides without production settings
         run: |
-          jq -n --arg commit "$GITHUB_SHA" --arg web "$(jq -r .image release/web.json)" --arg backend "$(jq -r .image release/backend.json)" '{version:"1.1.0",commit:$commit,compatible_schemas:["0002"],platforms:["linux/amd64","linux/arm64"],images:{web:$web,backend:$backend,postgres:"postgres@sha256:266d3c257594e195b309ae9d1805e54c788f1d7b375f56bf6c367aac6c917e7b"}}' > release/release-manifest.json
-          python3 deploy/scripts/validate-v11-release.py release/release-manifest.json
-          cp deploy/compose.prod.yaml deploy/env.example release/
-          cp -r deploy/scripts release/
-          cp docs/v1.1/operations-and-recovery.md docs/v1.1/implementation-report.md release/
-          cp docs/deployment-and-backup.md release/
-          tar -czf v11-deployment.tar.gz -C release .
+          set -eu
+          web=$(jq -er .image release/web.json)
+          backend=$(jq -er .image release/backend.json)
+          jq -e --arg sha "$SOURCE_COMMIT" '.commit == $sha and (.platforms | length == 2) and all(.platforms[]; .revision == $sha and .version == "1.1.1")' release/web.json release/backend.json
+          jq -n --arg version "$RELEASE_VERSION" --arg commit "$SOURCE_COMMIT" --arg workflow_commit "$GITHUB_SHA" --arg web "$web" --arg backend "$backend" '{version:$version,commit:$commit,workflow_commit:$workflow_commit,compatible_schemas:["0002"],images:{web:$web,backend:$backend},preserve_existing:["postgres","secrets","mounts","qBittorrent","VIMAG_WRITE_ENABLED","VIMAG_AUTOMATIC_INTAKE"]}' > release/release-manifest.json
+          printf 'WEB_IMAGE=%s\nBACKEND_IMAGE=%s\n' "$web" "$backend" > release/.env.pr12-images
+          cat release/.env.pr12-images
+          echo 'Image publication verified. No host deployment or media operation was executed.'
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        with: {name: v11-deployment, path: v11-deployment.tar.gz}
+        with: {name: pr12-release-1.1.1, path: release, include-hidden-files: true}
