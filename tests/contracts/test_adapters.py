@@ -9,6 +9,31 @@ from app.domain import GateError
 from app.settings import Settings
 
 
+@pytest.mark.parametrize(
+    "timeout",
+    [httpx.ConnectTimeout, httpx.ReadTimeout, httpx.WriteTimeout, httpx.PoolTimeout],
+)
+def test_provider_calls_have_bounded_timeouts_and_safe_errors(timeout: Any) -> None:
+    from app.adapters import Remote
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.extensions["timeout"] == {
+            "connect": 5,
+            "read": 20,
+            "write": 20,
+            "pool": 5,
+        }
+        raise timeout("synthetic-private-payload-never-log", request=request)
+
+    provider = Remote(
+        "SYNTHETIC", "https://provider.invalid", transport=httpx.MockTransport(handler)
+    )
+    with pytest.raises(GateError, match="SYNTHETIC_TIMEOUT") as caught:
+        provider.request("GET", "details")
+    assert caught.value.state == "BlockedExternalDependency"
+    assert "private" not in str(caught.value)
+
+
 def test_provider_rate_limit_honours_cooldown_without_repeated_requests() -> None:
     from app.adapters import Remote
 
