@@ -31,3 +31,7 @@ The Windows npm advisory request initially failed inside the sandbox and succeed
 - There is no schema migration in this change. JSONB inspection evidence and durable task kinds are additive; old approvals never authorize refreshed proposals. Historical dependency fields are preserved.
 - No production NAS files, PostgreSQL records, qBittorrent torrents or settings were changed. Production write gates and deployment configuration were not enabled.
 - No merge, release tag, release image build/publication or deployment is part of this delivery. Only local test/development images were built.
+
+## Post-validation release ledger update
+
+2026-11-04: CI and Security completed successfully (6/6), and PR #13 was merged to `main` (`9afa8a355a2a8c562cdd33a35b0320f2de09f229`). The accepted product-version designation is **v0.2.0 (Extension)**. References above to an unmerged PR describe the original submission and are retained for provenance. See [release history](../release-history.md). No live-provider or production validation is implied by the merge.
