@@ -1,5 +1,7 @@
 # ViMag — Separate inventory and torrent lifecycle
 
+> **2026-11-04 Library-first amendment:** For NAS Library inspection, enrichment and normalization, [Library-first normalization](library-first-normalization.md) supersedes historical torrent-dependency gating below. Torrent records and `missingFiles` are not Library normalization blockers. Physical ownership, fingerprints, paths, collisions, exact approvals, leases, journal/recovery and production write authorization remain mandatory. Delete/quarantine and download/import retain their separate dependency protections.
+
 ## Approved separation
 
 **Inventory is NAS-only.** It enumerates and updates media catalogue data and subtitle/NFO evidence without querying qBittorrent or attempting to determine live seeding dependencies. A temporary qBittorrent outage must never block a library scan. Inventory must not erase previously recorded torrent dependency metadata; it is owned by a different subsystem.
@@ -14,7 +16,7 @@ The intake pipeline must:
 5. Before moving/renaming a tracked torrent file, fence its job, use qBittorrent relocation/rename API as appropriate, and re-read its save path/file list to prove sync; if either side fails, reconcile without deleting any payload.
 6. On remove/finish/error/changed path, reconcile that registered torrent's mapping, not rescan unrelated media. Periodic bounded reconciliation may repair lost webhook events; it must not be library inventory.
 
-**Existing torrents:** user plans a separate one-time removal of old torrent records (not payload files) before mass normalization. No code/operation should silently remove them. Until a confirmed safe removal, destructive or relocating operations must preserve existing protections against unknown seeding dependencies. Never use 'delete files' in qBt removal. Clearing old torrent records is NOT part of this PR.
+**Existing torrents:** user plans a separate one-time removal of old torrent records (not payload files) before mass normalization. No code/operation should silently remove them. The later Library-first amendment removes legacy torrent dependency gating from inspection, enrichment and normalization. Legacy record removal is not a prerequisite for Library maintenance. Delete/quarantine and the future tracked download/import pipeline retain their separate dependency checks. Never use 'delete files' in qBt removal. Clearing old torrent records is NOT part of this PR.
 
 **Normalization and inventory:** scan discovers path, size, metadata, audio/subtitle tracks; then an explicit plan for media naming/organization; writes require production authorization and per-action approvals. Historical fingerprints cached from RC1 should be marked unverified when reused from matching file size, and freshly computed/checked before any file mutation.
 

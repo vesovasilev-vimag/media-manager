@@ -1,5 +1,7 @@
 # ViMag v1.1 — approved decision ledger
 
+> **2026-11-04 Library-first amendment:** For NAS Library inspection, enrichment and normalization, [Library-first normalization](library-first-normalization.md) supersedes historical torrent-dependency gating below. Torrent records and `missingFiles` are not Library normalization blockers. Physical ownership, fingerprints, paths, collisions, exact approvals, leases, journal/recovery and production write authorization remain mandatory. Delete/quarantine and download/import retain their separate dependency protections.
+
 **Version:** 1.1.0-spec.1 · 2026-11-02 · Documentation-only sync
 
 | ID | Decision | Supersession / note |

@@ -129,6 +129,16 @@ class EmulatedJellyfin:
 
 
 class EmulatedTMDb:
+    def details(self, provider_id: str, media_type: str) -> dict[str, Any]:
+        return {
+            "provider_id": provider_id,
+            "title": "Synthetic",
+            "year": 2026,
+            "title_language": "en-US",
+            "english_title_verified": True,
+            "provenance": "synthetic-fixture",
+        }
+
     def search(self, title: str, media_type: str, year: int | None) -> list[dict[str, Any]]:
         return [
             {

@@ -1,7 +1,6 @@
 """Per-file maintenance saga: exact plans, one approval, checkpointed execution."""
 
 import os
-import re
 from pathlib import PurePosixPath
 from typing import Any
 
@@ -47,6 +46,16 @@ def dependency_guard(
         raise GateError("DEPENDENCY_BLOCKED")
     if dependencies(worker, {**asset, "source": source_rel}, snapshot):
         raise GateError("DEPENDENCY_BLOCKED")
+    storage_guard(worker, asset, plan_id, source_rel)
+
+
+def storage_guard(
+    worker: Any,
+    asset: dict[str, Any],
+    plan_id: str | None = None,
+    source_rel: str | None = None,
+) -> None:
+    """Physical ownership proof, independent of historical torrent records."""
     source_rel = source_rel or "Library/" + asset["relative_path"]
     path = contained(worker.cfg.nas_root, source_rel)
     # A positive link count is additional blocking evidence; a CIFS count of 1 proves nothing.
@@ -158,58 +167,9 @@ def associated(worker: Any, asset: dict[str, Any]) -> list[dict[str, Any]]:
 def identity(
     worker: Any, asset: dict[str, Any], policy: dict[str, Any] | None = None
 ) -> dict[str, Any]:
-    """Only established IDs can auto-confirm; title-only candidates remain reviewable."""
-    known = dict(asset["data"].get("identity") or {})
-    name = PurePosixPath(asset["relative_path"]).stem
-    episode = re.search(r"(?i)S(\d{1,3})E(\d{1,3})(?:-?E(\d{1,3}))?", name)
-    known.setdefault(
-        "media_type",
-        "show"
-        if episode or asset["category"] == "series"
-        else "concert"
-        if asset["category"] == "concerts"
-        else "movie",
-    )
-    if episode:
-        known.setdefault("season", int(episode[1]))
-        known.setdefault(
-            "episodes", list(range(int(episode[2]), int(episode[3] or episode[2]) + 1))
-        )
-    if isinstance(known.get("year"), str) and known["year"].isdecimal():
-        known["year"] = int(known["year"])
-    year = re.search(r"\b(19\d{2}|20\d{2})\b", name)
-    if not known.get("year") and year:
-        known["year"] = int(year[0])
-    explicit = re.search(r"(?i)tmdb(?:id)?[- _]?(\d+)", asset["relative_path"])
-    stored = re.fullmatch(r"tmdb:(movie|show):(\d+)", asset.get("identity_key") or "")
-    if not known.get("provider_id") and (explicit or stored):
-        if explicit:
-            known["provider_id"] = explicit[1]
-        elif stored:
-            known["provider_id"] = stored[2]
-    known.setdefault("edition", "Unknown")
-    provider_id = known.get("provider_id")
-    if not provider_id and not known.get("confirmed"):
-        title = re.split(r"(?i)\b(?:19\d{2}|20\d{2}|S\d+E\d+)\b", name.replace(".", " "))[0].strip(
-            " -_"
-        )
-        candidates = worker.tmdb.search(title, known.get("media_type", "movie"), known.get("year"))
-        with worker.db.transaction() as conn:
-            conn.execute(
-                insert(p.evidence_tables["identity_candidates"]).values(
-                    asset_id=asset["id"],
-                    data={
-                        "candidates": candidates,
-                        "fingerprint": asset["fingerprint"],
-                        "source": "TMDb-search",
-                        "status": "NeedsReview",
-                    },
-                )
-            )
-        raise GateError("AMBIGUOUS_IDENTITY" if candidates else "IDENTITY_UNAVAILABLE")
-    from app.english_metadata import propose
+    from app.library_inspection import resolve
 
-    return propose(worker, asset, known, policy or library_policy.defaults())
+    return resolve(worker, asset, policy or library_policy.defaults())
 
 
 def analyze(worker: Any, task: dict[str, Any]) -> None:
@@ -227,7 +187,7 @@ def analyze(worker: Any, task: dict[str, Any]) -> None:
     if scope["category"]:
         query = query.where(p.assets.c.category == scope["category"])
     entries = []
-    planning_torrents = worker.qbt.all()
+    planning_torrents = worker.qbt.all() if kind != "NORMALIZE" else None
     catalog_folders: dict[str, list[dict[str, Any]]] = {}
     for row in db.rows(
         select(
@@ -265,7 +225,10 @@ def analyze(worker: Any, task: dict[str, Any]) -> None:
             source = contained(worker.cfg.nas_root, d["source"], existing=True)
             if sha256(source) != asset["fingerprint"]:
                 raise GateError("ASSET_CHANGED")
-            dependency_guard(worker, asset, planning_torrents)
+            if kind == "NORMALIZE":
+                storage_guard(worker, asset)
+            else:
+                dependency_guard(worker, asset, planning_torrents)
             d["files"] = associated(worker, asset)
             known_paths = {e["source"] for e in d["files"]}
             d["preserved_sidecars"] = [
@@ -276,6 +239,15 @@ def analyze(worker: Any, task: dict[str, Any]) -> None:
             ]
             if kind == "NORMALIZE":
                 d["identity"] = identity(worker, asset, job["data"]["policy"])
+                d["metadata_changes"] = {
+                    key: {
+                        "current": (asset["data"].get("identity") or {}).get(key),
+                        "proposed": value,
+                    }
+                    for key, value in d["identity"].items()
+                    if (asset["data"].get("identity") or {}).get(key) != value
+                }
+                d["versions"] = asset["data"].get("inspection", {}).get("versions", [])
                 candidates = db.rows(
                     select(p.evidence_tables["subtitle_candidates"])
                     .where(
@@ -331,6 +303,18 @@ def analyze(worker: Any, task: dict[str, Any]) -> None:
                             )
                         ):
                             raise GateError("WORK_DIRECTORY_IDENTITY_CONFLICT")
+                    destination = contained(worker.cfg.nas_root, str(new.parent))
+                    if destination.is_dir() and old.parent != new.parent:
+                        known_videos = {
+                            "Library/" + peer["relative_path"]
+                            for peer in catalog_folders.get(str(new.parent), [])
+                        }
+                        if any(
+                            path.suffix.lower() in {".mkv", ".mp4", ".avi", ".mov", ".m4v", ".ts"}
+                            and path.relative_to(worker.cfg.nas_root).as_posix() not in known_videos
+                            for path in destination.iterdir()
+                        ):
+                            raise GateError("DESTINATION_OWNERSHIP_UNKNOWN")
                 for entry in d["files"]:
                     path = PurePosixPath(entry["source"])
                     entry["target"] = (
@@ -359,6 +343,12 @@ def analyze(worker: Any, task: dict[str, Any]) -> None:
                                 raise GateError("SIDECAR_OWNERSHIP_REVIEW")
                             proposal["expected"] = entry["sha256"]
                 d["phases"] = ["Identity", "Hierarchy", "Subtitles", "Jellyfin"]
+                d["already_normalized"] = (
+                    d["source"] == target
+                    and not d.get("metadata_changes")
+                    and not d.get("subtitle_candidate")
+                    and all(s["expected"] == s["sha256"] for s in d["sidecar_proposals"])
+                )
                 # Preserve unknown directory-owned sidecars by requiring separate ownership review.
                 if old.parent != new.parent and any(
                     x.name in {"movie.nfo", "poster.jpg", "backdrop.jpg", "tvshow.nfo"}
@@ -592,7 +582,10 @@ def execute(worker: Any, task: dict[str, Any]) -> bool:
             )
             if file["phase"] < 2:
                 # Resume with sources which may already be moved/deleted; never infer no deps from absence.
-                dependency_guard(worker, asset, plan_id=plan["id"])
+                if kind == "NORMALIZE":
+                    storage_guard(worker, asset, plan_id=plan["id"])
+                else:
+                    dependency_guard(worker, asset, plan_id=plan["id"])
                 for entry in d["files"]:
                     effect(worker, task, plan, entry, kind, resources)
                 with db.transaction() as conn:

@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: ViMag Media Manager
-  version: 1.1.0-dev
+  version: 1.1.0
 paths:
   /api/v1/health/live:
     get:
@@ -526,6 +526,13 @@ paths:
       summary: Library
       operationId: library_api_v1_library_assets_get
       parameters:
+      - name: review
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+          title: Review
       - name: category
         in: query
         required: false
@@ -1398,6 +1405,257 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
       security:
       - session: []
+  /api/v1/library/assets/{asset_id}:
+    get:
+      summary: Asset Detail
+      operationId: asset_detail_api_v1_library_assets__asset_id__get
+      parameters:
+      - name: asset_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Asset Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                title: Response Asset Detail Api V1 Library Assets  Asset Id  Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - session: []
+  /api/v1/library/inspections/{task_id}:
+    get:
+      summary: Inspection Status
+      operationId: inspection_status_api_v1_library_inspections__task_id__get
+      parameters:
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Task Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                title: Response Inspection Status Api V1 Library Inspections  Task
+                  Id  Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - session: []
+  /api/v1/library/review:
+    get:
+      summary: Review Queue
+      operationId: review_queue_api_v1_library_review_get
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 200
+          minimum: 1
+          default: 25
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+          title: Offset
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                title: Response Review Queue Api V1 Library Review Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - session: []
+  /api/v1/library/assets/{asset_id}/reanalyze:
+    post:
+      summary: Reanalyze
+      operationId: reanalyze_api_v1_library_assets__asset_id__reanalyze_post
+      parameters:
+      - name: asset_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Asset Id
+      - name: X-CSRF-Token
+        in: header
+        required: true
+        schema:
+          type: string
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 16
+          maxLength: 128
+      - name: Origin
+        in: header
+        required: true
+        schema:
+          type: string
+      responses:
+        '202':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                title: Response Reanalyze Api V1 Library Assets  Asset Id  Reanalyze
+                  Post
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - session: []
+  /api/v1/library/assets/{asset_id}/identity-search:
+    post:
+      summary: Identity Search
+      operationId: identity_search_api_v1_library_assets__asset_id__identity_search_post
+      parameters:
+      - name: asset_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Asset Id
+      - name: X-CSRF-Token
+        in: header
+        required: true
+        schema:
+          type: string
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 16
+          maxLength: 128
+      - name: Origin
+        in: header
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IdentitySearch'
+      responses:
+        '202':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                title: Response Identity Search Api V1 Library Assets  Asset Id  Identity
+                  Search Post
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - session: []
+  /api/v1/library/assets/{asset_id}/identity-lookup:
+    post:
+      summary: Identity Lookup
+      operationId: identity_lookup_api_v1_library_assets__asset_id__identity_lookup_post
+      parameters:
+      - name: asset_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Asset Id
+      - name: X-CSRF-Token
+        in: header
+        required: true
+        schema:
+          type: string
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 16
+          maxLength: 128
+      - name: Origin
+        in: header
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IdentityLookup'
+      responses:
+        '202':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                title: Response Identity Lookup Api V1 Library Assets  Asset Id  Identity
+                  Lookup Post
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - session: []
   /api/v1/library/analytics:
     get:
       summary: Analytics
@@ -1750,6 +2008,20 @@ paths:
           minimum: 0
           default: 0
           title: Offset
+      - name: review_state
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - enum:
+            - Ready
+            - NeedsReview
+            - Unidentified
+            - Conflict
+            - AlreadyNormalized
+            type: string
+          - type: 'null'
+          title: Review State
       responses:
         '200':
           description: Successful Response
@@ -1953,6 +2225,20 @@ paths:
           minimum: 0
           default: 0
           title: Offset
+      - name: review_state
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - enum:
+            - Ready
+            - NeedsReview
+            - Unidentified
+            - Conflict
+            - AlreadyNormalized
+            type: string
+          - type: 'null'
+          title: Review State
       responses:
         '200':
           description: Successful Response
@@ -2156,6 +2442,20 @@ paths:
           minimum: 0
           default: 0
           title: Offset
+      - name: review_state
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - enum:
+            - Ready
+            - NeedsReview
+            - Unidentified
+            - Conflict
+            - AlreadyNormalized
+            type: string
+          - type: 'null'
+          title: Review State
       responses:
         '200':
           description: Successful Response
@@ -2634,12 +2934,69 @@ components:
           additionalProperties: true
           type: object
           title: Identity
+        category:
+          anyOf:
+          - type: string
+            enum:
+            - movies
+            - series
+            - animations
+            - documentaries
+            - concerts
+          - type: 'null'
+          title: Category
       additionalProperties: false
       type: object
       required:
       - expected_revision
       - identity
       title: IdentityInput
+    IdentityLookup:
+      properties:
+        provider_id:
+          type: string
+          pattern: ^[0-9]{1,12}$
+          title: Provider Id
+        media_type:
+          type: string
+          enum:
+          - movie
+          - show
+          - concert
+          title: Media Type
+      additionalProperties: false
+      type: object
+      required:
+      - provider_id
+      - media_type
+      title: IdentityLookup
+    IdentitySearch:
+      properties:
+        title:
+          type: string
+          maxLength: 200
+          minLength: 1
+          title: Title
+        media_type:
+          type: string
+          enum:
+          - movie
+          - show
+          - concert
+          title: Media Type
+        year:
+          anyOf:
+          - type: integer
+            maximum: 2200.0
+            minimum: 1880.0
+          - type: 'null'
+          title: Year
+      additionalProperties: false
+      type: object
+      required:
+      - title
+      - media_type
+      title: IdentitySearch
     NormalizeReview:
       properties:
         identity:

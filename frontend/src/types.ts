@@ -14,6 +14,8 @@ export interface Identity {
   title_language?: string | null;
   english_title_verified?: boolean;
   title_provenance?: string | null;
+  supplementary?: boolean;
+  separate_edition?: boolean;
   collection_name?: string;
   collection_language?: string;
   collection_override_language?: string;
@@ -21,6 +23,18 @@ export interface Identity {
   episode_title_language?: string;
 }
 export interface ItemData {
+  inspection?: {
+    state: string;
+    reason?: string;
+    parsed?: { title: string; year?: number; media_type: string };
+    proposed_identity?: Identity;
+    candidates?: {
+      id: string;
+      title: string;
+      year: number;
+      media_type: string;
+    }[];
+  };
   identity?: Identity;
   source_name?: string;
   quality_label?: string;

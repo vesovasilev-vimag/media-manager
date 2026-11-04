@@ -59,7 +59,7 @@ Reconcile `docker compose config`, restart API/Worker under the correct digest-p
 ## Operating rules
 
 - User confirmation is still required for irreversible DELETE-01; never auto-delete or auto-quarantine from normalization.
-- Protected torrents, unknown dependencies, changed file fingerprints, hardlink/mount problems and filesystem conflicts **still block individual jobs**. Workers continue eligible independent files.
+- Protected torrents and unknown dependencies still gate delete/quarantine/import. For Library normalization, changed fingerprints, unknown physical ownership, hardlink/mount problems and filesystem conflicts **still block individual files**; historical torrent references do not. Workers continue eligible independent files.
 - `read_only: true` in Compose hardens the container root filesystem. It does **not** block valid writes to the separately mounted NAS when worker authorization permits them.
 - Do not use a migration rollback by booting RC1 against schema `0002`. Follow `docs/v1.1/operations-and-recovery.md`.
 - This document does not claim that production has been activated. Actual host access, backup evidence, release artifacts and operator verification are required.

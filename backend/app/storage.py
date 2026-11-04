@@ -225,7 +225,22 @@ def read_nfo(path: Path) -> dict[str, Any]:
         return {
             "title": tree.findtext("originaltitle") or tree.findtext("title"),
             "year": tree.findtext("year"),
-            "provider_id": tree.findtext("tmdbid"),
+            "provider_id": tree.findtext("tmdbid") or tree.findtext("uniqueid[@type='tmdb']"),
+            "imdb_id": tree.findtext("imdbid") or tree.findtext("uniqueid[@type='imdb']"),
+            "original_title": tree.findtext("originaltitle"),
+            **(
+                {
+                    "media_type": "show",
+                    "season": int(tree.findtext("season") or "0"),
+                    "episodes": [
+                        int(node.text)
+                        for node in tree.findall("episode")
+                        if node.text and node.text.isdecimal()
+                    ],
+                }
+                if tree.tag == "episodedetails" and (tree.findtext("season") or "").isdecimal()
+                else {}
+            ),
         }
     except ElementTree.ParseError:
         return {"review": "INVALID_NFO"}

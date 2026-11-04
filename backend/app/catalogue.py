@@ -92,6 +92,9 @@ def normalized(path: str, data: dict[str, Any]) -> dict[str, Any]:
 def filters(criteria: dict[str, Any]) -> list[Any]:
     a = p.assets.c
     result = [a.workflow_state == "ACTIVE"]
+    if criteria.get("review"):
+        state = a.data["inspection"]["state"].astext
+        result.append(or_(state.is_(None), state.in_(["Unidentified", "NeedsReview"])))
     if criteria.get("search"):
         pattern = (
             "%"

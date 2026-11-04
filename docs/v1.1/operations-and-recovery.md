@@ -16,7 +16,7 @@ Movie collections are optional levels enabled by default; absence omits the fold
 
 ## Normalization
 
-Create `/library/normalizations/plans` with exactly one of `asset_ids`, `category`, or `all:true`. Worker analysis snapshots policy, identity, hashes, exact destinations, sidecar proposals, selected subtitle and dependencies. Poll `/library/normalizations/{job_id}`; file results are paginated. One approval supplies `plan_revision`, `plan_sha256`, `confirmed:true`. Stale revisions, changed bytes, dependencies, unknown links, escaping paths and collisions remain blocked. Maintenance never modifies a legacy torrent.
+Create `/library/normalizations/plans` with exactly one of `asset_ids`, `category`, or `all:true`. Worker analysis snapshots policy, identity, hashes, exact destinations, sidecar proposals, selected subtitle and physical ownership evidence. Poll `/library/normalizations/{job_id}`; file results are paginated. One approval supplies `plan_revision`, `plan_sha256`, `confirmed:true`. Stale revisions, changed bytes, unknown links, escaping paths and collisions remain blocked. Maintenance never modifies a legacy torrent.
 
 Phases are identity/metadata, hierarchy/naming and owned sidecars, subtitles, Jellyfin refresh/recognition. Correct files can be `NoChange`. Subtitle unavailability can warn; failed NAS integrity or Jellyfin recognition cannot produce successful normalization. Individual failures do not halt eligible siblings. No normalization step creates quarantine/delete intent.
 
@@ -49,3 +49,7 @@ Schema 0002 is additive; 0001 uses frozen RC1 metadata. Existing RC1 quarantine 
 An RC1/schema-0001 image is not a rollback target for schema 0002. Keep writes off during recovery. Reconcile NAS/qBt/journals first: DB restore does not undo filesystem operations. Never blindly replay an unobserved move, overwrite collisions, recreate deleted files from inventory or remove legacy torrents. Expired leases reclaim fencing epochs and durable operation keys. Production maintenance additionally requires G-06 inventory proof.
 
 Deployment prerequisites: distinct v1.1 tag/digests, passing CI/security, rotated Jellyfin token, real provider/qBt/Jellyfin checks, mount/UID/ACL and same-share links, backup restore, correct library roots/history exclusion, and existing operational gates. Publication, deployment and write/intake activation are separately authorized work.
+
+## Library-first inspection amendment (2026-11-04)
+
+See [Library-first normalization](library-first-normalization.md). Library normalization no longer queries qBittorrent or gates on historical references, including `missingFiles`. Existing torrent records remain untouched. Delete/quarantine retain their existing dependency guards. Metadata inspection includes cached/unchanged videos; per-file reanalysis and manual TMDb lookup/search update catalogue evidence without moving files.

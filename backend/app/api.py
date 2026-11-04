@@ -621,6 +621,7 @@ def create_app(config: Settings | None = None, database: p.Database | None = Non
 
     @app.get("/api/v1/library/assets", dependencies=[Depends(admin)])
     def library(
+        review: bool = False,
         category: Literal["movies", "series", "animations", "documentaries", "concerts"]
         | None = None,
         search: str = Query("", max_length=128),
@@ -638,6 +639,7 @@ def create_app(config: Settings | None = None, database: p.Database | None = Non
         return page(
             db,
             {
+                "review": review,
                 "category": category,
                 "search": search,
                 "video_quality": video_quality,
@@ -1184,13 +1186,10 @@ def create_app(config: Settings | None = None, database: p.Database | None = Non
                 )
                 if not asset:
                     raise GateError("NOT_FOUND")
-                if (
-                    asset["data"].get("dependencies")
-                    or conn.execute(
-                        select(p.refs.c.id).where(p.refs.c.asset_id == str(asset_id))
-                    ).first()
-                ):
-                    raise GateError("DEPENDENCY_BLOCKED")
+                if asset["workflow_state"] != "ACTIVE":
+                    raise GateError("SCOPE_ASSET_UNAVAILABLE")
+                if (asset["data"].get("identity") or {}).get("supplementary"):
+                    raise GateError("SUPPLEMENTARY_MATERIAL_REVIEW")
                 category = next(
                     (
                         k
@@ -1225,6 +1224,7 @@ def create_app(config: Settings | None = None, database: p.Database | None = Non
                     "source": "Library/" + asset["relative_path"],
                     "target": "Library/" + target,
                     "fingerprint": asset["fingerprint"],
+                    "asset_revision": asset["revision"],
                     "identity": body.identity,
                     "approval_required": True,
                 }
@@ -1268,6 +1268,16 @@ def create_app(config: Settings | None = None, database: p.Database | None = Non
                     or plan["revision"] != body.plan_revision
                 ):
                     raise GateError("REPLAN_REQUIRED")
+                asset = (
+                    conn.execute(select(p.assets).where(p.assets.c.id == plan["data"]["asset_id"]))
+                    .mappings()
+                    .one()
+                )
+                if (
+                    asset["revision"] != plan["data"].get("asset_revision")
+                    or asset["fingerprint"] != plan["data"]["fingerprint"]
+                ):
+                    raise GateError("PLAN_ASSET_STALE")
                 conn.execute(
                     pg_insert(p.approvals)
                     .values(

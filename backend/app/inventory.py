@@ -65,6 +65,10 @@ def execute(worker: Any, task: dict[str, Any]) -> None:
         summary["processed"] += 1
     library = worker.cfg.nas_root / "Library"
     policies = db.rows(select(p.policies))
+    catalogue_paths = {
+        row["relative_path"]: row
+        for row in db.rows(select(p.assets).where(p.assets.c.root == "library"))
+    }
     # Inventory is strictly about files on NAS, not torrent lifecycle.
     pending_progress = 0
 
@@ -100,6 +104,9 @@ def execute(worker: Any, task: dict[str, Any]) -> None:
                 roots |= required_roots
                 for policy in policies:
                     roots.add(policy["data"]["categories"][category]["root"])
+                discovery_roots = {CATEGORIES[category]} | {
+                    policy["data"]["categories"][category]["root"] for policy in policies
+                }
                 traversed = [
                     contained(library, name) for name in sorted(roots) if (library / name).is_dir()
                 ]
@@ -115,7 +122,13 @@ def execute(worker: Any, task: dict[str, Any]) -> None:
                     rel = path.relative_to(library).as_posix()
                     contained(library, rel, existing=True)
                     stat = path.stat()
-                    prior = by_path.get(rel)
+                    prior = by_path.get(rel) or catalogue_paths.get(rel)
+                    if prior and prior["category"] != category:
+                        # A manually reclassified file can still live under its old root.
+                        # Its owning category inspects it; never insert a duplicate or steal peers.
+                        continue
+                    if not prior and rel.split("/")[0] not in discovery_roots:
+                        continue
                     if prior and prior["workflow_state"] != "ACTIVE":
                         raise GateError("INACTIVE_PATH_REAPPEARED")
                     cached = bool(
@@ -273,6 +286,16 @@ def execute(worker: Any, task: dict[str, Any]) -> None:
                                 outcomes[rel] = outcome
                                 summary[outcome] += 1
                                 summary["processed"] += 1
+                    # Every inspection includes metadata, even when ffprobe is cached.
+                    current = db.one(
+                        select(p.assets).where(
+                            p.assets.c.relative_path == rel, p.assets.c.root == "library"
+                        )
+                    )
+                    catalogue_paths[rel] = current
+                    from app.library_inspection import inspect_asset
+
+                    inspect_asset(worker, task, current["id"])
                     seen.add(rel)
                 except (OSError, GateError) as error:
                     successful = False
@@ -305,6 +328,9 @@ def execute(worker: Any, task: dict[str, Any]) -> None:
                     )
                     summary["missing"] += result.rowcount
                 summary["enumerated"].append(category)
+        from app.library_inspection import refresh_versions
+
+        refresh_versions(worker, task)
         progress("COMPLETED_WITH_ERRORS" if summary["failed"] else "COMPLETED")
     except (GateError, OSError):
         summary["errors"].append({"code": "SCAN_EXTERNAL_FAILURE"})
